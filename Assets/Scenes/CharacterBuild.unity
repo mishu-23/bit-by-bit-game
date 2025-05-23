@@ -644,6 +644,7 @@ MonoBehaviour:
   gridSize: 4
   cellSize: 100
   cellPrefab: {fileID: 5691376343037563462, guid: 33fa8cd5f0ade634ab3f884d66e6b5aa, type: 3}
+  messagePanel: {fileID: 706363922}
 --- !u!114 &286617695
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1698,6 +1699,7 @@ GameObject:
   - component: {fileID: 706363921}
   - component: {fileID: 706363920}
   - component: {fileID: 706363919}
+  - component: {fileID: 706363922}
   m_Layer: 5
   m_Name: MessagePanel
   m_TagString: Untagged
@@ -1790,6 +1792,28 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 706363917}
   m_CullTransparentMesh: 1
+--- !u!114 &706363922
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 706363917}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 56cbd74c623011b4196f98206d4fbe85, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  messageIcon: {fileID: 842108514}
+  headerText: {fileID: 1108123652}
+  messageText: {fileID: 1400469828}
+  successIcon: {fileID: -6003790659568977904, guid: a55d8498c68860f458b57f497db776d1, type: 3}
+  warningIcon: {fileID: -1447605698058687634, guid: 52b14736642d7354fa4f8b2c6941d245, type: 3}
+  successColor: {r: 0.2, g: 0.8, b: 0.2, a: 1}
+  warningColor: {r: 0.8, g: 0.2, b: 0.2, a: 1}
+  displayDuration: 2
+  fadeInDuration: 0.3
+  fadeOutDuration: 0.3
 --- !u!1 &748600497
 GameObject:
   m_ObjectHideFlags: 0
@@ -2272,6 +2296,7 @@ GameObject:
   - component: {fileID: 1016313663}
   - component: {fileID: 1016313662}
   - component: {fileID: 1016313661}
+  - component: {fileID: 1016313664}
   m_Layer: 5
   m_Name: StatsPanel
   m_TagString: Untagged
@@ -2364,6 +2389,38 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1016313659}
   m_CullTransparentMesh: 1
+--- !u!114 &1016313664
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1016313659}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9deaa496ba8adf049aca4bdee63940d3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  leftPanelStats:
+  - statIcon: {fileID: 1177354575}
+    statValue: {fileID: 1047464974}
+    statType: 3
+  - statIcon: {fileID: 1430004713}
+    statValue: {fileID: 113234110}
+    statType: 2
+  - statIcon: {fileID: 376739571}
+    statValue: {fileID: 420039489}
+    statType: 1
+  rightPanelStats:
+  - statIcon: {fileID: 240133205}
+    statValue: {fileID: 399135993}
+    statType: 0
+  - statIcon: {fileID: 818489035}
+    statValue: {fileID: 1233785134}
+    statType: 4
+  - statIcon: {fileID: 1054246639}
+    statValue: {fileID: 429659330}
+    statType: 5
 --- !u!1 &1047464972
 GameObject:
   m_ObjectHideFlags: 0

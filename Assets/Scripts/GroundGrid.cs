@@ -1,72 +1,67 @@
 using UnityEngine;
 using UnityEngine.Tilemaps;
 
-[RequireComponent(typeof(Tilemap))]
-[RequireComponent(typeof(BoxCollider2D))]
+[RequireComponent(typeof(Grid))]
 public class GroundGrid : MonoBehaviour
 {
-    [Header("Grid Settings")]
-    [SerializeField] private LayerMask groundLayer;
-    [SerializeField] private LayerMask playerLayer;
+    [Header("Layer Settings")]
+    [SerializeField] private LayerMask groundLayer = 256; // Layer 8 (2^8 = 256)
+    [SerializeField] private LayerMask playerLayer = 8;   // Layer 3 (2^3 = 8)
 
+    private Grid grid;
     private Tilemap tilemap;
     private BoxCollider2D groundCollider;
 
     private void Awake()
     {
         // Get required components
-        tilemap = GetComponent<Tilemap>();
+        grid = GetComponent<Grid>();
+        tilemap = GetComponentInChildren<Tilemap>();
         groundCollider = GetComponent<BoxCollider2D>();
-        
-        // Configure the ground collider to match the tilemap bounds
-        Bounds tilemapBounds = tilemap.localBounds;
-        groundCollider.size = new Vector2(tilemapBounds.size.x, tilemapBounds.size.y);
-        groundCollider.offset = new Vector2(tilemapBounds.center.x, tilemapBounds.center.y);
-        
-        // Set the layer for ground detection
-        int groundLayerIndex = Mathf.RoundToInt(Mathf.Log(groundLayer.value, 2));
-        gameObject.layer = groundLayerIndex;
 
-        // Make sure the ground is static
-        gameObject.isStatic = true;
+        // Validate components
+        if (grid == null)
+        {
+            Debug.LogError($"GroundGrid on {gameObject.name} requires a Grid component!");
+            enabled = false;
+            return;
+        }
 
-        // Ensure layers can collide
-        int playerLayerIndex = Mathf.RoundToInt(Mathf.Log(playerLayer.value, 2));
-        Physics2D.IgnoreLayerCollision(playerLayerIndex, groundLayerIndex, false);
+        if (tilemap == null)
+        {
+            Debug.LogError($"GroundGrid on {gameObject.name} requires a Tilemap component on a child GameObject!");
+            Debug.LogError("Please create a child GameObject with a Tilemap component.");
+            enabled = false;
+            return;
+        }
 
-        // Debug information
-        Debug.Log($"Ground Layer: {gameObject.layer} (Layer {groundLayerIndex})");
-        Debug.Log($"Player Layer: {playerLayerIndex}");
-        Debug.Log($"Ground Collider Size: {groundCollider.size}");
-        Debug.Log($"Ground Collider Offset: {groundCollider.offset}");
-        Debug.Log($"Ground Position: {transform.position}");
-        Debug.Log($"Ground Bounds: {tilemapBounds}");
-        Debug.Log($"Layers can collide: {!Physics2D.GetIgnoreLayerCollision(playerLayerIndex, groundLayerIndex)}");
+        if (groundCollider == null)
+        {
+            Debug.LogError($"GroundGrid on {gameObject.name} requires a BoxCollider2D component!");
+            enabled = false;
+            return;
+        }
+
+        // Set the ground object to the ground layer (Layer 8)
+        gameObject.layer = 8;
+
+        // Ensure the layers can collide
+        Physics2D.IgnoreLayerCollision(8, 3, false);
+
+        if (Debug.isDebugBuild)
+        {
+            Debug.Log($"GroundGrid initialized on {gameObject.name}");
+            Debug.Log("Layer collision enabled between Ground (Layer 8) and Player (Layer 3)");
+        }
     }
 
     private void OnDrawGizmos()
     {
-        // Draw the ground collider in the editor
-        if (groundCollider != null)
+        if (!Application.isPlaying && groundCollider != null)
         {
-            // Draw the collider
+            // Draw the collider in the editor
             Gizmos.color = Color.green;
             Gizmos.DrawWireCube(transform.position + (Vector3)groundCollider.offset, groundCollider.size);
-
-            // Draw the actual bounds of the tilemap
-            if (tilemap != null)
-            {
-                Gizmos.color = Color.yellow;
-                Bounds bounds = tilemap.localBounds;
-                Gizmos.DrawWireCube(transform.position + bounds.center, bounds.size);
-            }
         }
-    }
-
-    // Helper method to check if a tile is solid
-    public bool IsTileSolid(Vector3Int tilePosition)
-    {
-        TileBase tile = tilemap.GetTile(tilePosition);
-        return tile != null;
     }
 } 

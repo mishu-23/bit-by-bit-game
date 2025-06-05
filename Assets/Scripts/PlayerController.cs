@@ -1,4 +1,6 @@
 using UnityEngine;
+using System.Collections.Generic;
+using System.Linq;
 
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(BoxCollider2D))]
@@ -9,130 +11,180 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float groundCheckDistance = 0.1f;
     [SerializeField] private LayerMask groundLayer;
 
+    [Header("Character Settings")]
+    [SerializeField] private CharacterRenderer characterRenderer;
+
+    [Header("Debug")]
+    [SerializeField] private bool showGroundCheckDebug = false;
+    [SerializeField] private bool showDebugInfo = false;
+    private bool wasGrounded = false;
+
     private Rigidbody2D rb;
     private BoxCollider2D boxCollider;
-    private bool isGrounded;
     private float horizontalInput;
-    private SpriteRenderer spriteRenderer;
 
     private void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
         boxCollider = GetComponent<BoxCollider2D>();
-        spriteRenderer = GetComponent<SpriteRenderer>();
         
-        // Configure Rigidbody2D for platformer movement
-        rb.gravityScale = 3f;
+        if (characterRenderer == null)
+        {
+            characterRenderer = GetComponentInChildren<CharacterRenderer>();
+            if (characterRenderer == null)
+            {
+                Debug.LogError("CharacterRenderer not found! Please assign it in the inspector or ensure it exists as a child GameObject.");
+            }
+        }
+
+        // Configure Rigidbody2D
+        rb.gravityScale = 1f;
         rb.constraints = RigidbodyConstraints2D.FreezeRotation;
         rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
-        rb.interpolation = RigidbodyInterpolation2D.Interpolate;
 
-        // Configure BoxCollider2D
-        boxCollider.size = new Vector2(0.8f, 0.8f);
-        boxCollider.offset = new Vector2(0f, 0f);
+        // Load the last saved character data
+        LoadLastSavedCharacter();
+    }
 
-        // Debug layer setup
-        Debug.Log($"Player Layer: {gameObject.layer}");
-        Debug.Log($"Ground Layer Mask: {groundLayer.value}");
-        int playerLayerMask = 1 << gameObject.layer;
-        bool canCollide = (Physics2D.GetLayerCollisionMask(gameObject.layer) & groundLayer.value) != 0;
-        Debug.Log($"Can collide with ground: {canCollide}");
+    private void LoadLastSavedCharacter()
+    {
+        string filePath = System.IO.Path.Combine(Application.persistentDataPath, "last_build.json");
+        if (!System.IO.File.Exists(filePath))
+        {
+            Debug.Log("No saved character data found at: " + filePath);
+            return;
+        }
+
+        try
+        {
+            string json = System.IO.File.ReadAllText(filePath);
+            GridStateData gridState = JsonUtility.FromJson<GridStateData>(json);
+            
+            if (gridState != null)
+            {
+                Debug.Log($"Loading character from saved data. Grid size: {gridState.gridSize}, Cells: {gridState.cells.Count}");
+                LoadCharacterFromGridState(gridState);
+            }
+            else
+            {
+                Debug.LogError("Failed to parse character data from JSON");
+            }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"Error loading character data: {e.Message}\n{e.StackTrace}");
+        }
     }
 
     private void Update()
     {
-        // Get horizontal input
-        horizontalInput = Input.GetAxisRaw("Horizontal");
-
-        // Flip sprite based on movement direction
-        if (horizontalInput != 0)
-        {
-            spriteRenderer.flipX = horizontalInput < 0;
-        }
-
-        // Check if grounded using multiple raycasts for better detection
-        isGrounded = CheckGrounded();
+        // Check if player is grounded
+        bool isGrounded = CheckGrounded();
         
-        // Debug ground state
-        if (isGrounded)
+        // Only log ground state changes if debug is enabled
+        if (showGroundCheckDebug && isGrounded != wasGrounded)
         {
-            Debug.Log("Player is grounded!");
+            Debug.Log($"Player {(isGrounded ? "landed on" : "left")} the ground");
+            wasGrounded = isGrounded;
         }
+
+        // Handle movement
+        float moveInput = Input.GetAxisRaw("Horizontal");
+        Vector2 velocity = rb.linearVelocity;
+        velocity.x = moveInput * moveSpeed;
+        rb.linearVelocity = velocity;
     }
 
     private bool CheckGrounded()
     {
         // Get the bottom center of the collider
-        Vector2 boxCenter = (Vector2)transform.position + boxCollider.offset;
-        Vector2 boxSize = boxCollider.size;
-        float boxBottom = boxCenter.y - (boxSize.y / 2f);
+        Vector2 boxCenter = boxCollider.bounds.center;
+        Vector2 boxSize = boxCollider.bounds.size;
+        Vector2 rayStart = new Vector2(boxCenter.x, boxCenter.y - boxSize.y/2);
 
-        // Cast multiple rays across the bottom of the collider
-        Vector2 rayStart = new Vector2(boxCenter.x - (boxSize.x / 2f), boxBottom);
-        Vector2 rayEnd = new Vector2(boxCenter.x + (boxSize.x / 2f), boxBottom);
-        int rayCount = 3;
-
-        for (int i = 0; i < rayCount; i++)
+        // Cast a ray downward
+        RaycastHit2D hit = Physics2D.Raycast(rayStart, Vector2.down, groundCheckDistance, groundLayer);
+        
+        if (showGroundCheckDebug)
         {
-            float t = i / (float)(rayCount - 1);
-            Vector2 rayOrigin = Vector2.Lerp(rayStart, rayEnd, t);
-            
-            RaycastHit2D hit = Physics2D.Raycast(rayOrigin, Vector2.down, groundCheckDistance, groundLayer);
-            if (hit.collider != null)
+            Debug.DrawRay(rayStart, Vector2.down * groundCheckDistance, hit.collider != null ? Color.green : Color.red);
+        }
+
+        return hit.collider != null;
+    }
+
+    public void LoadCharacterFromGridState(GridStateData gridState)
+    {
+        if (characterRenderer != null)
+        {
+            characterRenderer.LoadCharacterFromGridState(gridState);
+            UpdateColliderSize();
+
+            // Debug print all pixels
+            Debug.Log("Player character loaded with the following pixels:");
+            var activePixels = characterRenderer.GetActivePixels();
+            foreach (var pixelPos in activePixels)
             {
-                Debug.DrawRay(rayOrigin, Vector2.down * hit.distance, Color.green);
-                return true;
+                string pixelType = characterRenderer.GetPixelTypeAt(pixelPos);
+                Debug.Log($"Pixel at position ({pixelPos.x}, {pixelPos.y}): {pixelType}");
+            }
+            Debug.Log($"Total pixels: {activePixels.Count}");
+        }
+        else
+        {
+            Debug.LogWarning("CharacterRenderer not found! Cannot load character.");
+        }
+    }
+
+    public void TakeDamage(int damage)
+    {
+        if (characterRenderer != null)
+        {
+            // Get outer pixels that can be damaged
+            var outerPixels = characterRenderer.GetOuterPixels();
+            if (outerPixels.Count > 0)
+            {
+                // Remove a random outer pixel
+                int randomIndex = Random.Range(0, outerPixels.Count);
+                Vector2Int pixelToRemove = outerPixels[randomIndex];
+                string pixelType = characterRenderer.GetPixelTypeAt(pixelToRemove);
+                Debug.Log($"Removing pixel at ({pixelToRemove.x}, {pixelToRemove.y}) of type {pixelType}");
+                
+                characterRenderer.RemovePixel(pixelToRemove);
+                UpdateColliderSize();
+
+                // Print remaining pixels
+                var remainingPixels = characterRenderer.GetActivePixels();
+                Debug.Log($"Remaining pixels after damage: {remainingPixels.Count}");
+                foreach (var pixelPos in remainingPixels)
+                {
+                    string type = characterRenderer.GetPixelTypeAt(pixelPos);
+                    Debug.Log($"Remaining pixel at ({pixelPos.x}, {pixelPos.y}): {type}");
+                }
             }
             else
             {
-                Debug.DrawRay(rayOrigin, Vector2.down * groundCheckDistance, Color.red);
+                Debug.Log("No outer pixels available to damage!");
             }
         }
-
-        return false;
     }
 
-    private void FixedUpdate()
+    private void UpdateColliderSize()
     {
-        // Move the player
-        Vector2 movement = new Vector2(horizontalInput * moveSpeed, rb.linearVelocity.y);
-        rb.linearVelocity = movement;
+        if (characterRenderer == null || boxCollider == null) return;
 
-        // Debug velocity
-        Debug.Log($"Player Velocity: {rb.linearVelocity}");
-    }
+        // Get the bounds of the character from the renderer
+        Bounds characterBounds = characterRenderer.GetCharacterBounds();
+        
+        // Update the collider size to match the character bounds
+        boxCollider.size = new Vector2(characterBounds.size.x, characterBounds.size.y);
+        // Set offset to zero since the character is already centered
+        boxCollider.offset = Vector2.zero;
 
-    private void OnCollisionEnter2D(Collision2D collision)
-    {
-        Debug.Log($"Collision with: {collision.gameObject.name} on layer {collision.gameObject.layer}");
-        foreach (ContactPoint2D contact in collision.contacts)
+        if (showDebugInfo)
         {
-            Debug.Log($"Contact point: {contact.point}, Normal: {contact.normal}");
-        }
-    }
-
-    private void OnDrawGizmos()
-    {
-        if (!Application.isPlaying) return;
-
-        // Draw the player's collider
-        Gizmos.color = Color.yellow;
-        Vector2 boxCenter = (Vector2)transform.position + (boxCollider != null ? boxCollider.offset : Vector2.zero);
-        Vector2 boxSize = boxCollider != null ? boxCollider.size : Vector2.one;
-        Gizmos.DrawWireCube(boxCenter, boxSize);
-
-        // Draw ground check rays
-        Gizmos.color = Color.red;
-        float boxBottom = boxCenter.y - (boxSize.y / 2f);
-        Vector2 rayStart = new Vector2(boxCenter.x - (boxSize.x / 2f), boxBottom);
-        Vector2 rayEnd = new Vector2(boxCenter.x + (boxSize.x / 2f), boxBottom);
-        int rayCount = 3;
-
-        for (int i = 0; i < rayCount; i++)
-        {
-            float t = i / (float)(rayCount - 1);
-            Vector2 rayOrigin = Vector2.Lerp(rayStart, rayEnd, t);
-            Gizmos.DrawRay(rayOrigin, Vector2.down * groundCheckDistance);
+            Debug.Log($"Updated collider size to: {boxCollider.size}");
+            Debug.Log($"Updated collider offset to: {boxCollider.offset}");
         }
     }
 }

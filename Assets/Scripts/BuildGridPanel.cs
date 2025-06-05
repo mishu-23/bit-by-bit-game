@@ -2,6 +2,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using System;
+using System.Linq;
 
 public class BuildGridPanel : MonoBehaviour
 {
@@ -270,6 +271,102 @@ public class BuildGridPanel : MonoBehaviour
         }
 
         Debug.Log(logMessage);
+    }
+
+    // Public method to save and print the grid state for debugging
+    public void SaveGridState()
+    {
+        Debug.Log("=== SAVING GRID STATE (LOCAL JSON) ===");
+        
+        // Create grid state data
+        GridStateData gridState = new GridStateData(gridSize);
+        
+        // Collect all cell data
+        for (int y = 0; y < gridSize; y++)
+        {
+            for (int x = 0; x < gridSize; x++)
+            {
+                GridCell cell = gridCells[x, y];
+                PixelCell pixel = cell.currentPixel;
+                gridState.cells.Add(new CellData(x, y, pixel?.pixelType));
+                
+                // Still log for debugging
+                string pixelTypeStr = (pixel != null) ? pixel.pixelType.ToString() : "null";
+                Debug.Log($"Grid cell [{x},{y}] pixel type: {pixelTypeStr}");
+            }
+        }
+
+        // Convert to JSON
+        string json = JsonUtility.ToJson(gridState, true);
+        
+        // Save to file
+        string filePath = System.IO.Path.Combine(Application.persistentDataPath, "last_build.json");
+        System.IO.File.WriteAllText(filePath, json);
+        
+        // Show detailed save information in console
+        Debug.Log("=== SAVE INFORMATION ===");
+        Debug.Log($"Build saved successfully!");
+        Debug.Log($"Save location: {filePath}");
+        Debug.Log($"Total cells: {gridState.cells.Count}");
+        Debug.Log($"Cells with pixels: {gridState.cells.Where(c => !string.IsNullOrEmpty(c.pixelType)).Count()}");
+        Debug.Log($"Save time: {gridState.savedAt}");
+        Debug.Log("======================");
+    }
+
+    // Method to load the last saved grid state
+    public void LoadLastBuild()
+    {
+        string filePath = System.IO.Path.Combine(Application.persistentDataPath, "last_build.json");
+        
+        if (!System.IO.File.Exists(filePath))
+        {
+            Debug.Log("No saved build found");
+            return;
+        }
+
+        try
+        {
+            string json = System.IO.File.ReadAllText(filePath);
+            GridStateData gridState = JsonUtility.FromJson<GridStateData>(json);
+
+            // Verify grid size matches
+            if (gridState.gridSize != gridSize)
+            {
+                Debug.LogWarning($"Saved grid size ({gridState.gridSize}) doesn't match current grid size ({gridSize})");
+                return;
+            }
+
+            // Clear current grid
+            foreach (var cell in gridCells)
+            {
+                if (cell.currentPixel != null)
+                {
+                    cell.currentPixel.ReturnToInventory(true);
+                    cell.currentPixel = null;
+                }
+            }
+            placedPixels.Clear();
+            pixelCounts.Clear();
+
+            // Restore saved state
+            foreach (var cellData in gridState.cells)
+            {
+                if (!string.IsNullOrEmpty(cellData.pixelType))
+                {
+                    // Here you would need to get the appropriate pixel from your inventory
+                    // For now, we'll just log that we found a pixel
+                    Debug.Log($"Found saved pixel at [{cellData.x},{cellData.y}]: {cellData.pixelType}");
+                    // TODO: Implement actual pixel restoration from inventory
+                }
+            }
+
+            Debug.Log($"Loaded build from: {filePath}");
+            Debug.Log($"Build was saved at: {gridState.savedAt}");
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"Error loading saved build: {e.Message}");
+        }
     }
 
     private void OnDestroy()

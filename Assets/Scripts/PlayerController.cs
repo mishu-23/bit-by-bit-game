@@ -42,37 +42,64 @@ public class PlayerController : MonoBehaviour
         rb.constraints = RigidbodyConstraints2D.FreezeRotation;
         rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
 
-        // Load the last saved character data
+        // Removed LoadLastSavedCharacter() from here
+    }
+
+    private void Start()
+    {
+        // Load the last saved character data after all Awake() calls
         LoadLastSavedCharacter();
     }
 
     private void LoadLastSavedCharacter()
     {
         string filePath = System.IO.Path.Combine(Application.persistentDataPath, "last_build.json");
+        Debug.Log($"Attempting to load character data from: {filePath}");
+        
         if (!System.IO.File.Exists(filePath))
         {
-            Debug.Log("No saved character data found at: " + filePath);
+            Debug.LogWarning("No saved character data found at: " + filePath);
             return;
         }
 
         try
         {
             string json = System.IO.File.ReadAllText(filePath);
+            Debug.Log($"Read JSON data: {json}");
+            
+            if (string.IsNullOrEmpty(json))
+            {
+                Debug.LogError("JSON file is empty!");
+                return;
+            }
+
             GridStateData gridState = JsonUtility.FromJson<GridStateData>(json);
             
-            if (gridState != null)
+            if (gridState == null)
             {
-                Debug.Log($"Loading character from saved data. Grid size: {gridState.gridSize}, Cells: {gridState.cells.Count}");
-                LoadCharacterFromGridState(gridState);
+                Debug.LogError("Failed to parse character data from JSON - gridState is null");
+                return;
             }
-            else
+
+            if (gridState.cells == null)
             {
-                Debug.LogError("Failed to parse character data from JSON");
+                Debug.LogError("Grid state cells collection is null!");
+                return;
             }
+
+            Debug.Log($"Successfully parsed grid state. Grid size: {gridState.gridSize}, Cells count: {gridState.cells.Count}");
+            
+            if (characterRenderer == null)
+            {
+                Debug.LogError("CharacterRenderer component is not assigned!");
+                return;
+            }
+
+            LoadCharacterFromGridState(gridState);
         }
         catch (System.Exception e)
         {
-            Debug.LogError($"Error loading character data: {e.Message}\n{e.StackTrace}");
+            Debug.LogError($"Error loading character data: {e.Message}\nStack trace: {e.StackTrace}");
         }
     }
 
@@ -178,13 +205,12 @@ public class PlayerController : MonoBehaviour
         
         // Update the collider size to match the character bounds
         boxCollider.size = new Vector2(characterBounds.size.x, characterBounds.size.y);
-        // Set offset to zero since the character is already centered
-        boxCollider.offset = Vector2.zero;
+        // Set offset to the center of the bounds
+        boxCollider.offset = new Vector2(characterBounds.center.x, characterBounds.center.y);
 
         if (showDebugInfo)
         {
-            Debug.Log($"Updated collider size to: {boxCollider.size}");
-            Debug.Log($"Updated collider offset to: {boxCollider.offset}");
+            Debug.Log($"Collider size set to: {boxCollider.size}, offset: {boxCollider.offset}");
         }
     }
 }

@@ -90,11 +90,33 @@ public class CharacterRenderer : MonoBehaviour
             { "luck", "PixelTypes/Luck/Luck" }
         };
 
+        if (showDebugInfo)
+        {
+            Debug.Log("Starting to load pixel sprites...");
+        }
+
         // Load sprites from their specific paths
         foreach (var pixelType in pixelTypes)
         {
-            // Load the sprite from Resources
+            if (showDebugInfo)
+            {
+                Debug.Log($"Attempting to load sprite for {pixelType.Key} from path: {pixelType.Value}");
+            }
+
+            // First try to load as a Sprite
             Sprite sprite = Resources.Load<Sprite>(pixelType.Value);
+            
+            // If that fails, try loading as a Texture2D and converting to Sprite
+            if (sprite == null)
+            {
+                Texture2D texture = Resources.Load<Texture2D>(pixelType.Value);
+                if (texture != null)
+                {
+                    Debug.LogWarning($"Found texture but not sprite for {pixelType.Key}. Attempting to create sprite...");
+                    sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f));
+                }
+            }
+
             if (sprite != null)
             {
                 pixelSprites[pixelType.Key] = sprite;
@@ -106,22 +128,33 @@ public class CharacterRenderer : MonoBehaviour
 
                 if (showDebugInfo)
                 {
-                    Debug.Log($"Successfully loaded sprite for {pixelType.Key} from path: {pixelType.Value}");
+                    Debug.Log($"Successfully loaded sprite for {pixelType.Key}:");
+                    Debug.Log($"- Sprite size: {sprite.rect.width}x{sprite.rect.height}");
+                    Debug.Log($"- Pixels per unit: {sprite.pixelsPerUnit}");
+                    Debug.Log($"- Pivot: {sprite.pivot}");
                 }
             }
             else
             {
                 Debug.LogError($"Failed to load sprite for {pixelType.Key} from path: {pixelType.Value}");
-                Debug.LogError("Please check if the sprite exists at this path and is set as a Sprite (2D and UI) in its import settings.");
+                Debug.LogError("Please check:");
+                Debug.LogError($"1. Does the file exist at 'Assets/Resources/{pixelType.Value}.png'?");
+                Debug.LogError("2. Is the file set as a Sprite (2D and UI) in its import settings?");
+                Debug.LogError("3. Is the file in a Resources folder?");
+                Debug.LogError("4. Does the file name match exactly (case-sensitive)?");
             }
         }
 
         if (showDebugInfo)
         {
-            Debug.Log($"Loaded {pixelSprites.Count} pixel sprites:");
+            Debug.Log($"Finished loading pixel sprites. Successfully loaded {pixelSprites.Count} out of {pixelTypes.Count} sprites:");
             foreach (var sprite in pixelSprites)
             {
                 Debug.Log($"- {sprite.Key}: {(sprite.Value != null ? "Loaded" : "Failed to load")}");
+            }
+            foreach (var pixelType in pixelTypes.Keys.Except(pixelSprites.Keys))
+            {
+                Debug.LogError($"- {pixelType}: Failed to load (missing from pixelSprites)");
             }
         }
 
@@ -131,6 +164,7 @@ public class CharacterRenderer : MonoBehaviour
             Debug.LogError("1. Are your sprites in the correct folders under Resources/PixelTypes?");
             Debug.LogError("2. Do your sprite names match the paths defined in the code?");
             Debug.LogError("3. Are your sprites set as 'Sprite (2D and UI)' in their import settings?");
+            Debug.LogError("4. Are your sprite files named exactly as specified (e.g., 'Armor.png' for the Armor sprite)?");
         }
     }
 
@@ -176,14 +210,33 @@ public class CharacterRenderer : MonoBehaviour
             return;
         }
 
+        if (grid == null)
+        {
+            Debug.LogError("Grid component is null! Make sure it's attached to the GameObject.");
+            return;
+        }
+
+        if (tilemap == null)
+        {
+            Debug.LogError("Tilemap component is null! Make sure it's attached to a child GameObject.");
+            return;
+        }
+
         if (showDebugInfo)
         {
             Debug.Log($"Loading grid state with size {gridState.gridSize}");
-            Debug.Log($"Number of cells in grid state: {gridState.cells.Count}");
-            Debug.Log("Cell types in grid state (original coordinates):");
-            foreach (var cell in gridState.cells)
+            Debug.Log($"Number of cells in grid state: {gridState.cells?.Count ?? 0}");
+            if (gridState.cells != null)
             {
-                Debug.Log($"- Cell at ({cell.x}, {cell.y}): {cell.pixelType}");
+                Debug.Log("Cell types in grid state (original coordinates):");
+                foreach (var cell in gridState.cells)
+                {
+                    Debug.Log($"- Cell at ({cell.x}, {cell.y}): {cell.pixelType}");
+                }
+            }
+            else
+            {
+                Debug.LogError("Grid state cells collection is null!");
             }
         }
 
@@ -226,29 +279,42 @@ public class CharacterRenderer : MonoBehaviour
         }
 
         // Second pass: load active pixels
-        foreach (var cell in gridState.cells)
+        if (gridState.cells != null)
         {
-            // Store the original coordinates in activePixels
-            Vector2Int originalPos = new Vector2Int(cell.x, cell.y);
-            // Use flipped coordinates for tile placement
-            Vector2Int tilePos = new Vector2Int(cell.x, gridSize - 1 - cell.y);
-            Vector3Int tilemapPos = new Vector3Int(tilePos.x, tilePos.y, 0);
-
-            if (cell.pixelType != null)
+            foreach (var cell in gridState.cells)
             {
-                activePixels[originalPos] = cell.pixelType;
-                isOuterPixel[originalPos] = false; // Initialize as non-outer, will be updated in second pass
-                
-                // Place the tile
-                Tile tile = GetTileForPixelType(cell.pixelType);
-                if (tile != null)
+                if (cell == null)
                 {
-                    tilemap.SetTile(tilemapPos, tile);
+                    Debug.LogWarning("Found null cell in grid state!");
+                    continue;
                 }
-                
-                if (showDebugInfo)
+
+                // Store the original coordinates in activePixels
+                Vector2Int originalPos = new Vector2Int(cell.x, cell.y);
+                // Use flipped coordinates for tile placement
+                Vector2Int tilePos = new Vector2Int(cell.x, gridSize - 1 - cell.y);
+                Vector3Int tilemapPos = new Vector3Int(tilePos.x, tilePos.y, 0);
+
+                if (!string.IsNullOrEmpty(cell.pixelType))
                 {
-                    Debug.Log($"Loaded pixel at original position ({originalPos.x}, {originalPos.y}): {cell.pixelType}");
+                    activePixels[originalPos] = cell.pixelType;
+                    isOuterPixel[originalPos] = false; // Initialize as non-outer, will be updated in second pass
+                    
+                    // Place the tile
+                    Tile tile = GetTileForPixelType(cell.pixelType);
+                    if (tile != null)
+                    {
+                        tilemap.SetTile(tilemapPos, tile);
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"No tile found for pixel type: {cell.pixelType}");
+                    }
+                    
+                    if (showDebugInfo)
+                    {
+                        Debug.Log($"Loaded pixel at original position ({originalPos.x}, {originalPos.y}): {cell.pixelType}");
+                    }
                 }
             }
         }
@@ -419,44 +485,31 @@ public class CharacterRenderer : MonoBehaviour
 
     public Bounds GetCharacterBounds()
     {
-        if (activePixels.Count == 0)
+        if (gridSize <= 0)
         {
             return new Bounds(Vector3.zero, Vector3.zero);
         }
 
-        // Calculate bounds in world space
-        float minX = float.MaxValue;
-        float minY = float.MaxValue;
-        float maxX = float.MinValue;
-        float maxY = float.MinValue;
+        // Calculate the offset used for centering
+        float offsetX = -(gridSize * pixelSize) / 2f;
+        float offsetY = -(gridSize * pixelSize) / 2f;
 
-        foreach (var pixel in activePixels)
-        {
-            // Convert original coordinates to world space
-            // For x: use original coordinate
-            // For y: use original coordinate (no flipping needed since we want the actual position)
-            float x = pixel.Key.x * pixelSize;
-            float y = pixel.Key.y * pixelSize;
+        // The full grid covers from (0,0) to (gridSize, gridSize) in local space
+        float minX = 0 * pixelSize + offsetX;
+        float minY = 0 * pixelSize + offsetY;
+        float maxX = gridSize * pixelSize + offsetX;
+        float maxY = gridSize * pixelSize + offsetY;
 
-            minX = Mathf.Min(minX, x);
-            minY = Mathf.Min(minY, y);
-            maxX = Mathf.Max(maxX, x + pixelSize);
-            maxY = Mathf.Max(maxY, y + pixelSize);
-        }
-
-        // Calculate size first
         Vector3 size = new Vector3(
             maxX - minX,
             maxY - minY,
             0
         );
-
-        // Center should be at the character's position (which is already centered)
-        Vector3 center = Vector3.zero;
+        Vector3 center = new Vector3((minX + maxX) / 2f, (minY + maxY) / 2f, 0);
 
         if (showDebugInfo)
         {
-            Debug.Log($"Character bounds - Size: {size}, Center: {center}");
+            Debug.Log($"Full grid bounds - Size: {size}, Center: {center}");
             Debug.Log($"Min: ({minX}, {minY}), Max: ({maxX}, {maxY})");
         }
 

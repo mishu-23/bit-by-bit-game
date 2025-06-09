@@ -6,6 +6,10 @@ public class BuildButtonHandler : MonoBehaviour
 {
     private Button buildButton;
     private BuildGridPanel gridPanel;
+    [Header("Overlay Manager")]
+    public BuildOverlayManager overlayManager; // Assign in Inspector
+    [Header("Player Controller")]
+    public PlayerController playerController; // Assign in Inspector
 
     private void Awake()
     {
@@ -25,9 +29,16 @@ public class BuildButtonHandler : MonoBehaviour
     {
         if (gridPanel != null)
         {
-            // For now, just save and print the grid state locally
             gridPanel.SaveGridState();
             Debug.Log("Build button clicked - Grid state saved locally");
+        }
+        if (playerController != null)
+        {
+            playerController.LoadLastSavedCharacter();
+        }
+        if (overlayManager != null)
+        {
+            overlayManager.HideOverlay();
         }
     }
 

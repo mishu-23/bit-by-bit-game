@@ -51,7 +51,7 @@ public class PlayerController : MonoBehaviour
         LoadLastSavedCharacter();
     }
 
-    private void LoadLastSavedCharacter()
+    public void LoadLastSavedCharacter()
     {
         string filePath = System.IO.Path.Combine(Application.persistentDataPath, "last_build.json");
         Debug.Log($"Attempting to load character data from: {filePath}");

@@ -5,6 +5,7 @@ public class CoreInteraction : MonoBehaviour
 {
     [Header("Assign the E_Icon child here")]
     public GameObject eIcon;
+    public BuildOverlayManager overlayManager;
 
     private bool playerInRange = false;
 
@@ -32,7 +33,9 @@ public class CoreInteraction : MonoBehaviour
     {
         if (playerInRange && Input.GetKeyDown(KeyCode.E))
         {
-            SceneManager.LoadScene("CharacterBuild");
+            if (overlayManager != null)
+                overlayManager.ShowOverlay();
+            // Optionally, disable player movement here
         }
     }
 } 

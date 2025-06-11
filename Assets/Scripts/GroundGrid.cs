@@ -47,7 +47,7 @@ public class GroundGrid : MonoBehaviour
 
         // Ensure the layers can collide
         Physics2D.IgnoreLayerCollision(8, 3, false);
-
+        Physics2D.IgnoreLayerCollision(6, 8, false);
         if (Debug.isDebugBuild)
         {
             Debug.Log($"GroundGrid initialized on {gameObject.name}");

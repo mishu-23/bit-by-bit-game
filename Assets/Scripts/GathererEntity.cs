@@ -39,8 +39,8 @@ public class GathererEntity : MonoBehaviour
         gameObject.layer = 6; // Entity layer
         rb = GetComponent<Rigidbody2D>();
         
-        // Ignore collisions with common player layers
-        Physics2D.IgnoreLayerCollision(6, 8, true);  // Player layer
+        // Ignore collisions with player layer (assuming player is on layer 3)
+        Physics2D.IgnoreLayerCollision(6, 3, true);  // Entity vs Player
     }
 
     private void Start()

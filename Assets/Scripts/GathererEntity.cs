@@ -46,7 +46,57 @@ public class GathererEntity : MonoBehaviour
     private void Start()
     {
         transform.position = new Vector3(transform.position.x, groundY, transform.position.z);
+        
+        // Auto-find points if not assigned (for prefab compatibility)
+        FindPointsIfNotAssigned();
+        
         StartGathering();
+    }
+
+    private void FindPointsIfNotAssigned()
+    {
+        // Find points by name if not assigned
+        if (minePoint == null)
+        {
+            GameObject mine = GameObject.Find("Mine");
+            if (mine != null)
+            {
+                minePoint = mine.transform;
+                Debug.Log($"GathererEntity {gameObject.name}: Auto-found Mine point");
+            }
+            else
+            {
+                Debug.LogError($"GathererEntity {gameObject.name}: Could not find Mine point! Please assign it manually.");
+            }
+        }
+        
+        if (treePoint == null)
+        {
+            GameObject tree = GameObject.Find("Tree");
+            if (tree != null)
+            {
+                treePoint = tree.transform;
+                Debug.Log($"GathererEntity {gameObject.name}: Auto-found Tree point");
+            }
+            else
+            {
+                Debug.LogError($"GathererEntity {gameObject.name}: Could not find Tree point! Please assign it manually.");
+            }
+        }
+        
+        if (depositPoint == null)
+        {
+            GameObject deposit = GameObject.Find("Deposit");
+            if (deposit != null)
+            {
+                depositPoint = deposit.transform;
+                Debug.Log($"GathererEntity {gameObject.name}: Auto-found Deposit point");
+            }
+            else
+            {
+                Debug.LogError($"GathererEntity {gameObject.name}: Could not find Deposit point! Please assign it manually.");
+            }
+        }
     }
 
     private void FixedUpdate()

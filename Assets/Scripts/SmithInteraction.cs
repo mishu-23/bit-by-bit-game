@@ -4,7 +4,9 @@ public class SmithInteraction : MonoBehaviour
 {
     [Header("Assign the E_Icon child here")]
     public GameObject eIcon;
-    public BuildOverlayManager overlayManager;
+    // public BuildOverlayManager overlayManager; // Not needed for new menu
+
+    public GameObject smithCanvas; // Assign in inspector
 
     private bool playerInRange = false;
 
@@ -32,9 +34,15 @@ public class SmithInteraction : MonoBehaviour
     {
         if (playerInRange && Input.GetKeyDown(KeyCode.E))
         {
-            if (overlayManager != null)
-                overlayManager.ShowOverlay();
-            Debug.Log("Smith: BuildCharacter UI opened");
+            if (smithCanvas != null)
+                smithCanvas.SetActive(true);
+            // Optionally: Time.timeScale = 0; // Pause game
+        }
+
+        if (smithCanvas != null && smithCanvas.activeSelf && Input.GetKeyDown(KeyCode.Escape))
+        {
+            smithCanvas.SetActive(false);
+            // Optionally: Time.timeScale = 1; // Resume game
         }
     }
 
@@ -42,8 +50,11 @@ public class SmithInteraction : MonoBehaviour
     {
         if (eIcon != null)
         {
-            // Compensate for parent scale to keep E_Icon consistent size
             CompensateParentScale();
+        }
+        if (smithCanvas != null)
+        {
+            smithCanvas.SetActive(false); // Hide by default
         }
     }
 

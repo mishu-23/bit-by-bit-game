@@ -19,6 +19,7 @@ public class PowerBitPlayerController : MonoBehaviour
     [SerializeField] private float overheatBuildRate = 0.1f;
     [SerializeField] private float overheatMax = 1f;
     [SerializeField] private float overheatCooldownTime = 5f;
+    [SerializeField] private ProjectileSpawner projectileSpawner;
 
     [Header("Debug")]
     [SerializeField] private bool showGroundCheckDebug = false;
@@ -31,6 +32,8 @@ public class PowerBitPlayerController : MonoBehaviour
     private float overheatLevel = 0f;
     private bool isOverheated = false;
     private float overheatTimer = 0f;
+    private float lastShootTime = 0f;
+    private bool isShooting = false;
 
     private void Awake()
     {
@@ -43,6 +46,15 @@ public class PowerBitPlayerController : MonoBehaviour
             if (powerBitCharacterRenderer == null)
             {
                 Debug.LogError("PowerBitCharacterRenderer not found! Please assign it in the inspector or ensure it exists as a child GameObject.");
+            }
+        }
+
+        if (projectileSpawner == null)
+        {
+            projectileSpawner = GetComponentInChildren<ProjectileSpawner>();
+            if (projectileSpawner == null)
+            {
+                Debug.LogError("ProjectileSpawner not found! Please assign it in the inspector or ensure it exists as a child GameObject.");
             }
         }
 
@@ -154,10 +166,24 @@ public class PowerBitPlayerController : MonoBehaviour
 
     private void HandleShooting()
     {
+        // Check if we can shoot
         if (isOverheated) return;
 
+        // Check shooting cooldown
+        if (Time.time - lastShootTime < shootingCooldown) return;
+
+        // Handle mouse input for shooting
         if (Input.GetMouseButton(0)) // Left click to shoot
         {
+            if (!isShooting)
+            {
+                isShooting = true;
+                if (showDebugInfo)
+                {
+                    Debug.Log("Started shooting");
+                }
+            }
+
             // Build up overheat
             overheatLevel += overheatBuildRate * Time.deltaTime;
             
@@ -165,12 +191,25 @@ public class PowerBitPlayerController : MonoBehaviour
             {
                 isOverheated = true;
                 overheatTimer = overheatCooldownTime;
+                isShooting = false;
                 Debug.Log("Player overheated! 5-second cooldown.");
             }
             else
             {
                 // Shoot based on Power Bits
                 Shoot();
+                lastShootTime = Time.time;
+            }
+        }
+        else
+        {
+            if (isShooting)
+            {
+                isShooting = false;
+                if (showDebugInfo)
+                {
+                    Debug.Log("Stopped shooting");
+                }
             }
         }
     }
@@ -197,20 +236,75 @@ public class PowerBitPlayerController : MonoBehaviour
 
     private void Shoot()
     {
-        if (powerBitCharacterRenderer == null) return;
+        if (powerBitCharacterRenderer == null || projectileSpawner == null) return;
 
-        int totalDamage = powerBitCharacterRenderer.GetTotalDamage();
-        float shootingProbability = powerBitCharacterRenderer.GetAverageShootingProbability();
-
-        // Determine if this shot uses Power Bit damage or basic damage
-        bool usePowerBitDamage = Random.value < shootingProbability;
+        // Get aiming direction
+        Vector2 aimDirection = projectileSpawner.GetAimingDirection();
         
-        int damage = usePowerBitDamage ? totalDamage : 1;
-        string damageType = usePowerBitDamage ? "Power Bit" : "Basic";
-
-        Debug.Log($"Shot fired! Damage: {damage} ({damageType}) - Probability: {shootingProbability:P1}");
+        // Select which bit to use for this shot
+        SmithCellData selectedBit = SelectBitForShot();
         
-        // TODO: Implement actual projectile spawning and enemy damage
+        if (selectedBit != null)
+        {
+            // Use Power Bit for shooting
+            int damage = selectedBit.damage;
+            Rarity rarity = selectedBit.rarity;
+            string bitName = selectedBit.bitName;
+
+            // Spawn projectile
+            Projectile projectile = projectileSpawner.SpawnProjectile(rarity, damage, bitName);
+            
+            if (showDebugInfo)
+            {
+                Debug.Log($"Shot fired with Power Bit: {bitName} ({rarity}) - Damage: {damage}");
+            }
+        }
+        else
+        {
+            // Use default bit (no Power Bits available or none triggered)
+            Projectile projectile = projectileSpawner.SpawnProjectile(Rarity.Common, 1, "Default");
+            
+            if (showDebugInfo)
+            {
+                Debug.Log("Shot fired with default bit - Damage: 1");
+            }
+        }
+    }
+    
+    private SmithCellData SelectBitForShot()
+    {
+        if (powerBitCharacterRenderer == null) return null;
+        
+        var activeBits = powerBitCharacterRenderer.GetActiveBits();
+        if (activeBits.Count == 0) return null;
+        
+        // Create a list of bits with their probabilities
+        List<SmithCellData> availableBits = new List<SmithCellData>();
+        List<float> probabilities = new List<float>();
+        
+        foreach (var bitPos in activeBits)
+        {
+            SmithCellData bitData = powerBitCharacterRenderer.GetBitAt(bitPos);
+            if (bitData != null)
+            {
+                availableBits.Add(bitData);
+                probabilities.Add(bitData.shootingProbability);
+            }
+        }
+        
+        if (availableBits.Count == 0) return null;
+        
+        // Check if any bit triggers based on its probability
+        for (int i = 0; i < availableBits.Count; i++)
+        {
+            if (Random.value < probabilities[i])
+            {
+                return availableBits[i];
+            }
+        }
+        
+        // No bit triggered, return null (will use default bit)
+        return null;
     }
 
     private bool CheckGrounded()
@@ -251,6 +345,12 @@ public class PowerBitPlayerController : MonoBehaviour
             Debug.Log($"Total Damage: {powerBitCharacterRenderer.GetTotalDamage()}");
             Debug.Log($"Average Shooting Probability: {powerBitCharacterRenderer.GetAverageShootingProbability():P1}");
             Debug.Log($"Movement Speed Multiplier: {GetMovementSpeedMultiplier():P1}");
+            
+            // Update spawn point position based on new grid size
+            if (projectileSpawner != null)
+            {
+                projectileSpawner.RefreshSpawnPointPosition();
+            }
         }
         else
         {
@@ -326,4 +426,25 @@ public class PowerBitPlayerController : MonoBehaviour
     public float GetShootingProbability() => powerBitCharacterRenderer?.GetAverageShootingProbability() ?? 0f;
     public int GetPowerBitCount() => powerBitCharacterRenderer?.GetActiveBits().Count ?? 0;
     public float GetCurrentMovementSpeedMultiplier() => GetMovementSpeedMultiplier();
+    
+    // Shooting-related getters
+    public bool IsShooting() => isShooting;
+    public float GetAimingAngle() => projectileSpawner?.GetAimingAngle() ?? 0f;
+    public Vector2 GetAimingDirection() => projectileSpawner?.GetAimingDirection() ?? Vector2.right;
+    public bool IsValidAimingDirection() => projectileSpawner?.IsValidAimingDirection() ?? false;
+    public int GetActiveProjectileCount() => projectileSpawner?.GetActiveProjectileCount() ?? 0;
+    
+    // Get current shooting stats
+    public string GetCurrentShootingStats()
+    {
+        if (powerBitCharacterRenderer == null) return "No Power Bits";
+        
+        var activeBits = powerBitCharacterRenderer.GetActiveBits();
+        if (activeBits.Count == 0) return "No Power Bits";
+        
+        int totalDamage = powerBitCharacterRenderer.GetTotalDamage();
+        float avgProbability = powerBitCharacterRenderer.GetAverageShootingProbability();
+        
+        return $"Power Bits: {activeBits.Count}, Total Damage: {totalDamage}, Avg Probability: {avgProbability:P1}";
+    }
 } 

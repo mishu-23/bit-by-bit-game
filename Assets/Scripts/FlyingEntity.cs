@@ -1,7 +1,7 @@
 using UnityEngine;
 using System.Collections;
 
-public class FlyingEntity : MonoBehaviour
+public class FlyingEntity : MonoBehaviour, IDamageable
 {
     [Header("Target")]
     public Transform playerTarget;
@@ -14,6 +14,10 @@ public class FlyingEntity : MonoBehaviour
     public float maxHeight = 5f;
     public float minHeight = 0.5f;
 
+    [Header("Combat")]
+    public int maxHealth = 10;
+    public int currentHealth;
+
     [Header("Behavior")]
     public bool isFollowing = false;
     public float followDelay = 0.3f;
@@ -25,6 +29,7 @@ public class FlyingEntity : MonoBehaviour
     {
         gameObject.layer = 6; // Entity layer
         rb = GetComponent<Rigidbody2D>();
+        currentHealth = maxHealth;
         
         // Ignore collisions with player layer (assuming player is on layer 3)
         Physics2D.IgnoreLayerCollision(6, 3, true);  // Entity vs Player
@@ -208,5 +213,18 @@ public class FlyingEntity : MonoBehaviour
     public Vector2 GetVelocity()
     {
         return rb != null ? rb.linearVelocity : Vector2.zero;
+    }
+
+    // IDamageable implementation
+    public void TakeDamage(int damage)
+    {
+        currentHealth -= damage;
+        Debug.Log($"FlyingEntity {gameObject.name} took {damage} damage! Health: {currentHealth}/{maxHealth}");
+        
+        if (currentHealth <= 0)
+        {
+            Debug.Log($"FlyingEntity {gameObject.name} destroyed!");
+            Destroy(gameObject);
+        }
     }
 } 

@@ -7,7 +7,7 @@ public class BuildButtonHandler : MonoBehaviour
     private Button buildButton;
     private BuildGridPanel gridPanel;
     [Header("Overlay Manager")]
-    public BuildOverlayManager overlayManager; // Assign in Inspector
+    // public BuildOverlayManager overlayManager; // Assign in Inspector - Class not found
     [Header("Player Controller")]
     public PlayerController playerController; // Assign in Inspector
 
@@ -36,10 +36,10 @@ public class BuildButtonHandler : MonoBehaviour
         {
             playerController.LoadLastSavedCharacter();
         }
-        if (overlayManager != null)
-        {
-            overlayManager.HideOverlay();
-        }
+        // if (overlayManager != null)
+        // {
+        //     overlayManager.HideOverlay();
+        // }
     }
 
     private void OnDestroy()

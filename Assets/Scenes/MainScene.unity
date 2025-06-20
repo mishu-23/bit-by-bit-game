@@ -5185,6 +5185,7 @@ GameObject:
   - component: {fileID: 1119771334}
   - component: {fileID: 1119771333}
   - component: {fileID: 1119771332}
+  - component: {fileID: 1119771335}
   m_Layer: 3
   m_Name: Player
   m_TagString: Player
@@ -5334,6 +5335,7 @@ Transform:
   m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 1797153787}
+  - {fileID: 1195285481}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1119771332
@@ -5352,12 +5354,13 @@ MonoBehaviour:
   groundCheckDistance: 0.1
   groundLayer:
     serializedVersion: 2
-    m_Bits: 256
-  powerBitCharacterRenderer: {fileID: 1119771333}
+    m_Bits: 0
+  powerBitCharacterRenderer: {fileID: 0}
   shootingCooldown: 0.1
   overheatBuildRate: 0.1
   overheatMax: 1
   overheatCooldownTime: 5
+  projectileSpawner: {fileID: 1195285482}
   showGroundCheckDebug: 0
   showDebugInfo: 0
 --- !u!114 &1119771333
@@ -5377,6 +5380,7 @@ MonoBehaviour:
   rarePowerBitSprite: {fileID: -7854629474860912292, guid: 1b9c7b5e3b910aa44b8a3dfc0b85ed75, type: 3}
   epicPowerBitSprite: {fileID: -8754744741259069018, guid: 313eac53656d27446a39c17818322829, type: 3}
   legendaryPowerBitSprite: {fileID: -6850067910205024016, guid: 96a5ef004c04bba41bae3c20eaedc456, type: 3}
+  defaultBitSprite: {fileID: 4329407632164072968, guid: 39af66d79f33c9b4b918e99477f7161a, type: 3}
 --- !u!156049354 &1119771334
 Grid:
   m_ObjectHideFlags: 0
@@ -5389,7 +5393,21 @@ Grid:
   m_CellGap: {x: 0, y: 0, z: 0}
   m_CellLayout: 0
   m_CellSwizzle: 0
---- !u!1 &1165492484
+--- !u!114 &1119771335
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1119771326}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 83cf0fcbc95ba3c4a9360f5784e62d27, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  maxCapacity: 20
+  bits: []
+--- !u!1 &1195285480
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -5397,43 +5415,50 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1165492486}
-  - component: {fileID: 1165492485}
-  m_Layer: 0
-  m_Name: UIManager
+  - component: {fileID: 1195285481}
+  - component: {fileID: 1195285482}
+  m_Layer: 3
+  m_Name: ProjectileSpawner
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1165492485
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1165492484}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ea8bb29200086834789f21c0646373c4, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  buildOverlay: {fileID: 0}
---- !u!4 &1165492486
+--- !u!4 &1195285481
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1165492484}
+  m_GameObject: {fileID: 1195285480}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -1.3291388, y: 2.796254, z: -0.091935605}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 0}
+  m_Father: {fileID: 1119771331}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1195285482
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1195285480}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9efcc1cde590dec4ea3d5ccdc645ccc7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  defaultProjectilePrefab: {fileID: 8168839296318481847, guid: 2d79ef68a47b0444296696fdc20927f2, type: 3}
+  rareProjectilePrefab: {fileID: 8168839296318481847, guid: 4e3758b3782ed8342a641afdf7f2ceab, type: 3}
+  epicProjectilePrefab: {fileID: 8168839296318481847, guid: ab9e5c9b9021f98429be6a71a7c06cab, type: 3}
+  legendaryProjectilePrefab: {fileID: 8168839296318481847, guid: 5fa24a860a33cb24f910ea99bcb85100, type: 3}
+  spawnPoint: {fileID: 0}
+  spawnOffset: 1
+  characterRenderer: {fileID: 0}
+  showDebugInfo: 0
 --- !u!1001 &1239406946
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -8070,7 +8095,6 @@ SceneRoots:
   - {fileID: 1119771331}
   - {fileID: 2002887791}
   - {fileID: 724348812}
-  - {fileID: 1165492486}
   - {fileID: 1334667808}
   - {fileID: 2033512970}
   - {fileID: 631494270}

@@ -1,7 +1,7 @@
 using UnityEngine;
 using System.Collections;
 
-public class CrawlingEntity : MonoBehaviour
+public class CrawlingEntity : MonoBehaviour, IDamageable
 {
     [Header("Target")]
     public Transform playerTarget;
@@ -12,6 +12,10 @@ public class CrawlingEntity : MonoBehaviour
     public float groundY = 0.5f;
     public float detectionRange = 10f;
     public float minFollowDistance = 1f;
+
+    [Header("Combat")]
+    public int maxHealth = 15;
+    public int currentHealth;
 
     [Header("Behavior")]
     public bool isFollowing = false;
@@ -24,6 +28,7 @@ public class CrawlingEntity : MonoBehaviour
     {
         gameObject.layer = 6; // Entity layer
         rb = GetComponent<Rigidbody2D>();
+        currentHealth = maxHealth;
         
         // Ignore collisions with player layer (assuming player is on layer 3)
         Physics2D.IgnoreLayerCollision(6, 3, true);  // Entity vs Player
@@ -162,5 +167,18 @@ public class CrawlingEntity : MonoBehaviour
     public bool HasCollidedWithPlayer()
     {
         return hasCollidedWithPlayer;
+    }
+
+    // IDamageable implementation
+    public void TakeDamage(int damage)
+    {
+        currentHealth -= damage;
+        Debug.Log($"CrawlingEntity {gameObject.name} took {damage} damage! Health: {currentHealth}/{maxHealth}");
+        
+        if (currentHealth <= 0)
+        {
+            Debug.Log($"CrawlingEntity {gameObject.name} destroyed!");
+            Destroy(gameObject);
+        }
     }
 } 

@@ -17,6 +17,7 @@ public class PowerBitCharacterRenderer : MonoBehaviour
     [SerializeField] private Sprite rarePowerBitSprite;
     [SerializeField] private Sprite epicPowerBitSprite;
     [SerializeField] private Sprite legendaryPowerBitSprite;
+    [SerializeField] private Sprite defaultBitSprite; // Reference to a default sprite for unfilled cells
 
     // Component references
     private Grid grid;
@@ -29,6 +30,7 @@ public class PowerBitCharacterRenderer : MonoBehaviour
     // Sprite cache
     private Dictionary<Rarity, Sprite> bitSprites = new Dictionary<Rarity, Sprite>();
     private Dictionary<Rarity, Tile> bitTiles = new Dictionary<Rarity, Tile>();
+    private Tile defaultTile; // Cached default tile
 
     private void Awake()
     {
@@ -45,6 +47,13 @@ public class PowerBitCharacterRenderer : MonoBehaviour
 
         // Load bit sprites
         LoadBitSprites();
+
+        // Create default tile if sprite is assigned
+        if (defaultBitSprite != null)
+        {
+            defaultTile = ScriptableObject.CreateInstance<Tile>();
+            defaultTile.sprite = defaultBitSprite;
+        }
 
         // Set up the grid
         grid.cellSize = new Vector3(bitSize, bitSize, 0);
@@ -65,6 +74,18 @@ public class PowerBitCharacterRenderer : MonoBehaviour
             Debug.Log($"PowerBitCharacterRenderer initialized on {gameObject.name}");
             Debug.Log($"Grid cell size set to: {grid.cellSize}");
             Debug.Log($"Tilemap found on: {tilemap.gameObject.name}");
+            if (defaultBitSprite != null)
+            {
+                Debug.Log("Default bit sprite is assigned");
+            }
+            else
+            {
+                Debug.LogWarning("Default bit sprite is not assigned! Unfilled cells will be invisible.");
+            }
+            if (defaultTile != null)
+            {
+                Debug.Log("Default tile created successfully");
+            }
         }
     }
 
@@ -145,7 +166,25 @@ public class PowerBitCharacterRenderer : MonoBehaviour
             Debug.Log($"Tilemap position offset: ({tilemap.transform.localPosition.x}, {tilemap.transform.localPosition.y})");
         }
 
-        // Load active Power Bits
+        // First pass: fill all grid positions with default tiles
+        if (defaultTile != null)
+        {
+            for (int y = 0; y < gridSize; y++)
+            {
+                for (int x = 0; x < gridSize; x++)
+                {
+                    Vector3Int tilemapPos = new Vector3Int(x, y, 0);
+                    tilemap.SetTile(tilemapPos, defaultTile);
+                }
+            }
+            
+            if (showDebugInfo)
+            {
+                Debug.Log($"Filled entire {gridSize}x{gridSize} grid with default tiles");
+            }
+        }
+
+        // Second pass: load active Power Bits (this will override default tiles)
         if (gridState.cells != null)
         {
             foreach (var cell in gridState.cells)
@@ -299,7 +338,20 @@ public class PowerBitCharacterRenderer : MonoBehaviour
         // Clear the tilemap
         tilemap.ClearAllTiles();
         
-        // Render all active bits
+        // First pass: fill all grid positions with default tiles
+        if (defaultTile != null)
+        {
+            for (int y = 0; y < gridSize; y++)
+            {
+                for (int x = 0; x < gridSize; x++)
+                {
+                    Vector3Int tilemapPos = new Vector3Int(x, y, 0);
+                    tilemap.SetTile(tilemapPos, defaultTile);
+                }
+            }
+        }
+        
+        // Second pass: render all active bits (this will override default tiles)
         foreach (var bit in activeBits)
         {
             Tile tile = GetTileForRarity(bit.Value.rarity);
@@ -372,5 +424,11 @@ public class PowerBitCharacterRenderer : MonoBehaviour
     {
         if (activeBits.Count == 0) return 0f;
         return activeBits.Values.Average(bit => bit.shootingProbability);
+    }
+    
+    // Get current grid size
+    public int GetGridSize()
+    {
+        return gridSize;
     }
 } 

@@ -5185,7 +5185,6 @@ GameObject:
   - component: {fileID: 1119771334}
   - component: {fileID: 1119771333}
   - component: {fileID: 1119771332}
-  - component: {fileID: 1119771335}
   m_Layer: 3
   m_Name: Player
   m_TagString: Player
@@ -5356,8 +5355,9 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 0
   powerBitCharacterRenderer: {fileID: 0}
-  shootingCooldown: 0.1
-  overheatBuildRate: 0.1
+  shootingCooldown: 0.25
+  overheatBuildRate: 0.5
+  overheatDecayRate: 0.05
   overheatMax: 1
   overheatCooldownTime: 5
   projectileSpawner: {fileID: 1195285482}
@@ -5393,20 +5393,6 @@ Grid:
   m_CellGap: {x: 0, y: 0, z: 0}
   m_CellLayout: 0
   m_CellSwizzle: 0
---- !u!114 &1119771335
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1119771326}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 83cf0fcbc95ba3c4a9360f5784e62d27, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  maxCapacity: 20
-  bits: []
 --- !u!1 &1195285480
 GameObject:
   m_ObjectHideFlags: 0

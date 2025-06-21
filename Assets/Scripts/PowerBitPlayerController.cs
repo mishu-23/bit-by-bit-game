@@ -17,6 +17,7 @@ public class PowerBitPlayerController : MonoBehaviour
     [Header("Combat Settings")]
     [SerializeField] private float shootingCooldown = 0.1f;
     [SerializeField] private float overheatBuildRate = 0.1f;
+    [SerializeField] private float overheatDecayRate = 0.05f;
     [SerializeField] private float overheatMax = 1f;
     [SerializeField] private float overheatCooldownTime = 5f;
     [SerializeField] private ProjectileSpawner projectileSpawner;
@@ -66,6 +67,18 @@ public class PowerBitPlayerController : MonoBehaviour
 
     private void Start()
     {
+        // Print overheat settings for debugging
+        if (showDebugInfo)
+        {
+            Debug.Log("=== OVERHEAT SYSTEM SETTINGS ===");
+            Debug.Log($"Build Rate: {overheatBuildRate}/second ({overheatBuildRate * 100:F1}%/second)");
+            Debug.Log($"Decay Rate: {overheatDecayRate}/second ({overheatDecayRate * 100:F1}%/second)");
+            Debug.Log($"Max Overheat: {overheatMax} ({overheatMax * 100:F1}%)");
+            Debug.Log($"Cooldown Time: {overheatCooldownTime} seconds");
+            Debug.Log($"Shooting Cooldown: {shootingCooldown} seconds");
+            Debug.Log("================================");
+        }
+        
         // Load the last saved Smith build
         LoadLastSavedSmithBuild();
     }
@@ -166,12 +179,6 @@ public class PowerBitPlayerController : MonoBehaviour
 
     private void HandleShooting()
     {
-        // Check if we can shoot
-        if (isOverheated) return;
-
-        // Check shooting cooldown
-        if (Time.time - lastShootTime < shootingCooldown) return;
-
         // Handle mouse input for shooting
         if (Input.GetMouseButton(0)) // Left click to shoot
         {
@@ -184,21 +191,44 @@ public class PowerBitPlayerController : MonoBehaviour
                 }
             }
 
-            // Build up overheat
-            overheatLevel += overheatBuildRate * Time.deltaTime;
-            
-            if (overheatLevel >= overheatMax)
+            // Only build up overheat if not already overheated
+            if (!isOverheated)
             {
-                isOverheated = true;
-                overheatTimer = overheatCooldownTime;
-                isShooting = false;
-                Debug.Log("Player overheated! 5-second cooldown.");
+                // Build up overheat
+                overheatLevel += overheatBuildRate * Time.deltaTime;
+                
+                // Debug print overheat percentage
+                if (showDebugInfo)
+                {
+                    float overheatPercentage = (overheatLevel / overheatMax) * 100f;
+                    Debug.Log($"Overheat: {overheatPercentage:F1}% ({overheatLevel:F3}/{overheatMax:F3})");
+                }
+                
+                if (overheatLevel >= overheatMax)
+                {
+                    isOverheated = true;
+                    overheatTimer = overheatCooldownTime;
+                    isShooting = false;
+                    Debug.Log("=== PLAYER OVERHEATED! 5-second cooldown started ===");
+                }
+                else
+                {
+                    // Only shoot if cooldown allows
+                    if (Time.time - lastShootTime >= shootingCooldown)
+                    {
+                        // Shoot based on Power Bits
+                        Shoot();
+                        lastShootTime = Time.time;
+                    }
+                }
             }
             else
             {
-                // Shoot based on Power Bits
-                Shoot();
-                lastShootTime = Time.time;
+                // Player is overheated - show cooldown message
+                if (showDebugInfo)
+                {
+                    Debug.Log($"Still overheated! Cooldown: {overheatTimer:F1}s remaining");
+                }
             }
         }
         else
@@ -219,18 +249,31 @@ public class PowerBitPlayerController : MonoBehaviour
         if (isOverheated)
         {
             overheatTimer -= Time.deltaTime;
+            if (showDebugInfo)
+            {
+                Debug.Log($"Overheat cooldown: {overheatTimer:F1}s remaining");
+            }
+            
             if (overheatTimer <= 0f)
             {
                 isOverheated = false;
                 overheatLevel = 0f;
-                Debug.Log("Overheat cooldown finished!");
+                Debug.Log("=== OVERHEAT COOLDOWN FINISHED! Can shoot again ===");
             }
         }
         else if (overheatLevel > 0f)
         {
             // Gradually reduce overheat when not shooting
-            overheatLevel -= overheatBuildRate * Time.deltaTime * 0.5f;
+            float previousLevel = overheatLevel;
+            overheatLevel -= overheatDecayRate * Time.deltaTime;
             overheatLevel = Mathf.Max(0f, overheatLevel);
+            
+            // Debug print overheat decay
+            if (overheatLevel != previousLevel && showDebugInfo)
+            {
+                float overheatPercentage = (overheatLevel / overheatMax) * 100f;
+                Debug.Log($"Overheat cooling: {overheatPercentage:F1}% ({overheatLevel:F3}/{overheatMax:F3})");
+            }
         }
     }
 
@@ -420,6 +463,9 @@ public class PowerBitPlayerController : MonoBehaviour
     // Public getters for UI or other systems
     public float GetOverheatLevel() => overheatLevel;
     public float GetOverheatMax() => overheatMax;
+    public float GetOverheatPercentage() => (overheatLevel / overheatMax) * 100f;
+    public float GetOverheatBuildRate() => overheatBuildRate;
+    public float GetOverheatDecayRate() => overheatDecayRate;
     public bool IsOverheated() => isOverheated;
     public float GetOverheatTimer() => overheatTimer;
     public int GetTotalDamage() => powerBitCharacterRenderer?.GetTotalDamage() ?? 0;

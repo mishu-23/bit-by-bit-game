@@ -10,6 +10,13 @@ public class PowerBitPlayerController : MonoBehaviour
     [SerializeField] private float moveSpeed = 5f;
     [SerializeField] private float groundCheckDistance = 0.1f;
     [SerializeField] private LayerMask groundLayer;
+    
+    [Header("Rolling Settings")]
+    [SerializeField] private bool enableRolling = true;
+    [SerializeField] private float rollTorque = 10f;
+    [SerializeField] private float maxRollSpeed = 720f; // degrees per second
+    [SerializeField] private float rollDamping = 0.1f; // how quickly rolling slows down (reduced for less drift)
+    [SerializeField] private float stopThreshold = 0.1f; // minimum speed before stopping completely
 
     [Header("Character Settings")]
     [SerializeField] private PowerBitCharacterRenderer powerBitCharacterRenderer;
@@ -61,7 +68,14 @@ public class PowerBitPlayerController : MonoBehaviour
 
         // Configure Rigidbody2D
         rb.gravityScale = 1f;
-        rb.constraints = RigidbodyConstraints2D.FreezeRotation;
+        if (enableRolling)
+        {
+            rb.constraints = RigidbodyConstraints2D.None; // Allow rotation for rolling
+        }
+        else
+        {
+            rb.constraints = RigidbodyConstraints2D.FreezeRotation; // Keep original behavior
+        }
         rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
     }
 
@@ -149,12 +163,21 @@ public class PowerBitPlayerController : MonoBehaviour
 
         // Handle movement
         float moveInput = Input.GetAxisRaw("Horizontal");
-        Vector2 velocity = rb.linearVelocity;
         
-        // Apply movement speed penalty based on number of Power Bits
-        float speedMultiplier = GetMovementSpeedMultiplier();
-        velocity.x = moveInput * moveSpeed * speedMultiplier;
-        rb.linearVelocity = velocity;
+        if (enableRolling)
+        {
+            HandleRollingMovement(moveInput);
+        }
+        else
+        {
+            // Original linear movement
+            Vector2 velocity = rb.linearVelocity;
+            
+            // Apply movement speed penalty based on number of Power Bits
+            float speedMultiplier = GetMovementSpeedMultiplier();
+            velocity.x = moveInput * moveSpeed * speedMultiplier;
+            rb.linearVelocity = velocity;
+        }
 
         // Handle shooting
         HandleShooting();
@@ -458,6 +481,51 @@ public class PowerBitPlayerController : MonoBehaviour
             Debug.Log($"Collider offset set to: {boxCollider.offset}");
             Debug.Log($"Using fixed grid bounds. Local center: {localCenter}, Local size: {localSize}");
         }
+    }
+
+    private void HandleRollingMovement(float moveInput)
+    {
+        // Apply movement speed penalty based on number of Power Bits
+        float speedMultiplier = GetMovementSpeedMultiplier();
+        
+        if (Mathf.Abs(moveInput) > 0.1f)
+        {
+            // Apply torque for rolling movement (negated for correct direction)
+            float torque = -moveInput * rollTorque * speedMultiplier;
+            rb.AddTorque(torque, ForceMode2D.Force);
+            
+            // Limit maximum roll speed
+            if (Mathf.Abs(rb.angularVelocity) > maxRollSpeed)
+            {
+                rb.angularVelocity = Mathf.Sign(rb.angularVelocity) * maxRollSpeed;
+            }
+            
+            if (showDebugInfo)
+            {
+                Debug.Log($"Rolling - Torque: {torque:F2}, Angular Velocity: {rb.angularVelocity:F1}°/s");
+            }
+        }
+        else
+        {
+            // More aggressive stopping when no input
+            if (Mathf.Abs(rb.angularVelocity) > stopThreshold)
+            {
+                // Apply strong damping to stop quickly
+                rb.angularVelocity *= rollDamping;
+            }
+            else
+            {
+                // Stop completely when below threshold
+                rb.angularVelocity = 0f;
+            }
+        }
+        
+        // Optional: Add some forward movement based on rotation for more realistic rolling
+        // This makes the box move forward as it rolls
+        float forwardSpeed = -rb.angularVelocity * (boxCollider.size.x / 2f) * Mathf.Deg2Rad;
+        Vector2 velocity = rb.linearVelocity;
+        velocity.x = forwardSpeed * speedMultiplier;
+        rb.linearVelocity = velocity;
     }
 
     // Public getters for UI or other systems

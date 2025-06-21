@@ -4782,6 +4782,7 @@ GameObject:
   - component: {fileID: 1032789263}
   - component: {fileID: 1032789266}
   - component: {fileID: 1032789267}
+  - component: {fileID: 1032789268}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -4939,6 +4940,23 @@ MonoBehaviour:
       m_PostInfinity: 2
       m_RotationOrder: 4
   CustomBlends: {fileID: 0}
+--- !u!114 &1032789268
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1032789262}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 87078f0ba8bb866449f4555f859cbf79, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  target: {fileID: 0}
+  fixedYPosition: 3
+  followSpeed: 5
+  offset: {x: 0, y: 0, z: -10}
+  showDebugInfo: 0
 --- !u!1001 &1052694955
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -5250,9 +5268,9 @@ Rigidbody2D:
   m_Simulated: 1
   m_UseFullKinematicContacts: 0
   m_UseAutoMass: 0
-  m_Mass: 1
+  m_Mass: 4
   m_LinearDamping: 0
-  m_AngularDamping: 0.05
+  m_AngularDamping: 30
   m_GravityScale: 1
   m_Material: {fileID: 0}
   m_IncludeLayers:
@@ -5264,7 +5282,7 @@ Rigidbody2D:
   m_Interpolate: 1
   m_SleepingMode: 1
   m_CollisionDetection: 1
-  m_Constraints: 4
+  m_Constraints: 0
 --- !u!212 &1119771330
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -5353,7 +5371,12 @@ MonoBehaviour:
   groundCheckDistance: 0.1
   groundLayer:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 256
+  enableRolling: 1
+  rollTorque: 20
+  maxRollSpeed: 270
+  rollDamping: 0.95
+  stopThreshold: 0.1
   powerBitCharacterRenderer: {fileID: 0}
   shootingCooldown: 0.25
   overheatBuildRate: 0.5
@@ -7318,7 +7341,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1991763534
 MonoBehaviour:
   m_ObjectHideFlags: 0

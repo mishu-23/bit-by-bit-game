@@ -14,9 +14,15 @@ public class PowerBitPlayerController : MonoBehaviour
     [Header("Rolling Settings")]
     [SerializeField] private bool enableRolling = true;
     [SerializeField] private float rollTorque = 10f;
-    [SerializeField] private float maxRollSpeed = 720f; // degrees per second
-    [SerializeField] private float rollDamping = 0.1f; // how quickly rolling slows down (reduced for less drift)
-    [SerializeField] private float stopThreshold = 0.1f; // minimum speed before stopping completely
+    [SerializeField] private float maxRollSpeed = 720f;
+    [SerializeField] private float rollDamping = 0.8f;
+    [SerializeField] private float stopThreshold = 50f;
+    
+    [Header("Rolling Stamina")]
+    [SerializeField] private float rollStaminaDepleteRate = 0.2f; // How fast stamina depletes while rolling
+    [SerializeField] private float rollStaminaRecoverRate = 0.1f; // How fast stamina recovers when not rolling
+    [SerializeField] private float rollStaminaMax = 1f; // Maximum stamina
+    [SerializeField] private float rollStaminaCooldownTime = 5f; // Cooldown time when stamina is depleted
 
     [Header("Character Settings")]
     [SerializeField] private PowerBitCharacterRenderer powerBitCharacterRenderer;
@@ -30,18 +36,20 @@ public class PowerBitPlayerController : MonoBehaviour
     [SerializeField] private ProjectileSpawner projectileSpawner;
 
     [Header("Debug")]
-    [SerializeField] private bool showGroundCheckDebug = false;
     [SerializeField] private bool showDebugInfo = false;
-    private bool wasGrounded = false;
 
     private Rigidbody2D rb;
     private BoxCollider2D boxCollider;
-    private float horizontalInput;
     private float overheatLevel = 0f;
     private bool isOverheated = false;
     private float overheatTimer = 0f;
     private float lastShootTime = 0f;
     private bool isShooting = false;
+    
+    // Rolling stamina variables
+    private float rollStaminaLevel = 1f;
+    private bool isRollStaminaDepleted = false;
+    private float rollStaminaTimer = 0f;
 
     private void Awake()
     {
@@ -51,139 +59,80 @@ public class PowerBitPlayerController : MonoBehaviour
         if (powerBitCharacterRenderer == null)
         {
             powerBitCharacterRenderer = GetComponentInChildren<PowerBitCharacterRenderer>();
-            if (powerBitCharacterRenderer == null)
-            {
-                Debug.LogError("PowerBitCharacterRenderer not found! Please assign it in the inspector or ensure it exists as a child GameObject.");
-            }
         }
 
         if (projectileSpawner == null)
         {
             projectileSpawner = GetComponentInChildren<ProjectileSpawner>();
-            if (projectileSpawner == null)
-            {
-                Debug.LogError("ProjectileSpawner not found! Please assign it in the inspector or ensure it exists as a child GameObject.");
-            }
         }
 
-        // Configure Rigidbody2D
         rb.gravityScale = 1f;
-        if (enableRolling)
-        {
-            rb.constraints = RigidbodyConstraints2D.None; // Allow rotation for rolling
-        }
-        else
-        {
-            rb.constraints = RigidbodyConstraints2D.FreezeRotation; // Keep original behavior
-        }
+        rb.constraints = enableRolling ? RigidbodyConstraints2D.None : RigidbodyConstraints2D.FreezeRotation;
         rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
     }
 
     private void Start()
     {
-        // Print overheat settings for debugging
+        // Initialize rolling stamina to full
+        rollStaminaLevel = rollStaminaMax;
+        isRollStaminaDepleted = false;
+        rollStaminaTimer = 0f;
+        
         if (showDebugInfo)
         {
-            Debug.Log("=== OVERHEAT SYSTEM SETTINGS ===");
-            Debug.Log($"Build Rate: {overheatBuildRate}/second ({overheatBuildRate * 100:F1}%/second)");
-            Debug.Log($"Decay Rate: {overheatDecayRate}/second ({overheatDecayRate * 100:F1}%/second)");
-            Debug.Log($"Max Overheat: {overheatMax} ({overheatMax * 100:F1}%)");
-            Debug.Log($"Cooldown Time: {overheatCooldownTime} seconds");
-            Debug.Log($"Shooting Cooldown: {shootingCooldown} seconds");
-            Debug.Log("================================");
+            Debug.Log($"Rolling stamina initialized: {rollStaminaLevel}/{rollStaminaMax}");
         }
         
-        // Load the last saved Smith build
         LoadLastSavedSmithBuild();
     }
 
     public void LoadLastSavedSmithBuild()
     {
         string filePath = System.IO.Path.Combine(Application.persistentDataPath, "smith_build.json");
-        Debug.Log($"Attempting to load Smith build from: {filePath}");
         
-        if (!System.IO.File.Exists(filePath))
-        {
-            Debug.LogWarning("No saved Smith build found at: " + filePath);
-            return;
-        }
+        if (!System.IO.File.Exists(filePath)) return;
 
         try
         {
             string json = System.IO.File.ReadAllText(filePath);
-            Debug.Log($"Read JSON data: {json}");
-            
-            if (string.IsNullOrEmpty(json))
-            {
-                Debug.LogError("JSON file is empty!");
-                return;
-            }
-
             SmithGridStateData gridState = JsonUtility.FromJson<SmithGridStateData>(json);
             
-            if (gridState == null)
+            if (gridState?.cells != null && powerBitCharacterRenderer != null)
             {
-                Debug.LogError("Failed to parse Smith build from JSON - gridState is null");
-                return;
+                LoadSmithBuild(gridState);
             }
-
-            if (gridState.cells == null)
-            {
-                Debug.LogError("Grid state cells collection is null!");
-                return;
-            }
-
-            Debug.Log($"Successfully parsed Smith grid state. Grid size: {gridState.gridSize}, Cells count: {gridState.cells.Count}");
-            
-            if (powerBitCharacterRenderer == null)
-            {
-                Debug.LogError("PowerBitCharacterRenderer component is not assigned!");
-                return;
-            }
-
-            LoadSmithBuild(gridState);
         }
         catch (System.Exception e)
         {
-            Debug.LogError($"Error loading Smith build: {e.Message}\nStack trace: {e.StackTrace}");
+            Debug.LogError($"Error loading Smith build: {e.Message}");
         }
     }
 
     private void Update()
     {
-        // Check if player is grounded
-        bool isGrounded = CheckGrounded();
-        
-        // Only log ground state changes if debug is enabled
-        if (showGroundCheckDebug && isGrounded != wasGrounded)
-        {
-            Debug.Log($"Player {(isGrounded ? "landed on" : "left")} the ground");
-            wasGrounded = isGrounded;
-        }
-
-        // Handle movement
         float moveInput = Input.GetAxisRaw("Horizontal");
+        bool isRolling = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
         
-        if (enableRolling)
+        if (showDebugInfo && isRolling)
+        {
+            Debug.Log($"Rolling detected - Input: {moveInput}, Stamina: {rollStaminaLevel:F2}, Depleted: {isRollStaminaDepleted}");
+        }
+        
+        if (enableRolling && isRolling && !isRollStaminaDepleted)
         {
             HandleRollingMovement(moveInput);
         }
         else
         {
-            // Original linear movement
             Vector2 velocity = rb.linearVelocity;
-            
-            // Apply movement speed penalty based on number of Power Bits
             float speedMultiplier = GetMovementSpeedMultiplier();
             velocity.x = moveInput * moveSpeed * speedMultiplier;
             rb.linearVelocity = velocity;
         }
 
-        // Handle shooting
         HandleShooting();
-
-        // Handle overheat
         HandleOverheat();
+        HandleRollingStamina(isRolling);
     }
 
     private float GetMovementSpeedMultiplier()
@@ -191,41 +140,26 @@ public class PowerBitPlayerController : MonoBehaviour
         if (powerBitCharacterRenderer == null) return 1f;
         
         int bitCount = powerBitCharacterRenderer.GetActiveBits().Count;
-        int maxBits = 4; // 2x2 grid for now
+        int maxBits = 4;
         
-        if (bitCount == 0) return 1f; // No bits = 100% speed
-        if (bitCount >= maxBits) return 0.3f; // Full build = 30% speed
+        if (bitCount == 0) return 1f;
+        if (bitCount >= maxBits) return 0.6f;
         
-        // Linear interpolation between 100% and 30%
-        return Mathf.Lerp(1f, 0.3f, (float)bitCount / maxBits);
+        return Mathf.Lerp(1f, 0.6f, (float)bitCount / maxBits);
     }
 
     private void HandleShooting()
     {
-        // Handle mouse input for shooting
-        if (Input.GetMouseButton(0)) // Left click to shoot
+        if (Input.GetMouseButton(0))
         {
             if (!isShooting)
             {
                 isShooting = true;
-                if (showDebugInfo)
-                {
-                    Debug.Log("Started shooting");
-                }
             }
 
-            // Only build up overheat if not already overheated
             if (!isOverheated)
             {
-                // Build up overheat
                 overheatLevel += overheatBuildRate * Time.deltaTime;
-                
-                // Debug print overheat percentage
-                if (showDebugInfo)
-                {
-                    float overheatPercentage = (overheatLevel / overheatMax) * 100f;
-                    Debug.Log($"Overheat: {overheatPercentage:F1}% ({overheatLevel:F3}/{overheatMax:F3})");
-                }
                 
                 if (overheatLevel >= overheatMax)
                 {
@@ -234,36 +168,16 @@ public class PowerBitPlayerController : MonoBehaviour
                     isShooting = false;
                     Debug.Log("=== PLAYER OVERHEATED! 5-second cooldown started ===");
                 }
-                else
+                else if (Time.time - lastShootTime >= shootingCooldown)
                 {
-                    // Only shoot if cooldown allows
-                    if (Time.time - lastShootTime >= shootingCooldown)
-                    {
-                        // Shoot based on Power Bits
-                        Shoot();
-                        lastShootTime = Time.time;
-                    }
-                }
-            }
-            else
-            {
-                // Player is overheated - show cooldown message
-                if (showDebugInfo)
-                {
-                    Debug.Log($"Still overheated! Cooldown: {overheatTimer:F1}s remaining");
+                    Shoot();
+                    lastShootTime = Time.time;
                 }
             }
         }
         else
         {
-            if (isShooting)
-            {
-                isShooting = false;
-                if (showDebugInfo)
-                {
-                    Debug.Log("Stopped shooting");
-                }
-            }
+            isShooting = false;
         }
     }
 
@@ -272,10 +186,6 @@ public class PowerBitPlayerController : MonoBehaviour
         if (isOverheated)
         {
             overheatTimer -= Time.deltaTime;
-            if (showDebugInfo)
-            {
-                Debug.Log($"Overheat cooldown: {overheatTimer:F1}s remaining");
-            }
             
             if (overheatTimer <= 0f)
             {
@@ -286,54 +196,67 @@ public class PowerBitPlayerController : MonoBehaviour
         }
         else if (overheatLevel > 0f)
         {
-            // Gradually reduce overheat when not shooting
-            float previousLevel = overheatLevel;
             overheatLevel -= overheatDecayRate * Time.deltaTime;
             overheatLevel = Mathf.Max(0f, overheatLevel);
+        }
+    }
+
+    private void HandleRollingMovement(float moveInput)
+    {
+        float speedMultiplier = GetMovementSpeedMultiplier();
+        
+        if (Mathf.Abs(moveInput) > 0.1f)
+        {
+            float torque = -moveInput * rollTorque * speedMultiplier;
+            rb.AddTorque(torque, ForceMode2D.Force);
             
-            // Debug print overheat decay
-            if (overheatLevel != previousLevel && showDebugInfo)
+            if (Mathf.Abs(rb.angularVelocity) > maxRollSpeed)
             {
-                float overheatPercentage = (overheatLevel / overheatMax) * 100f;
-                Debug.Log($"Overheat cooling: {overheatPercentage:F1}% ({overheatLevel:F3}/{overheatMax:F3})");
+                rb.angularVelocity = Mathf.Sign(rb.angularVelocity) * maxRollSpeed;
             }
         }
+        else
+        {
+            if (Mathf.Abs(rb.angularVelocity) > stopThreshold)
+            {
+                float oldVelocity = rb.angularVelocity;
+                rb.angularVelocity *= rollDamping;
+                
+                if (showDebugInfo)
+                {
+                    Debug.Log($"Damping applied: {oldVelocity:F1} -> {rb.angularVelocity:F1} (damping: {rollDamping})");
+                }
+            }
+            else
+            {
+                if (showDebugInfo && Mathf.Abs(rb.angularVelocity) > 0.01f)
+                {
+                    Debug.Log($"Stopping rotation: {rb.angularVelocity:F1} (threshold: {stopThreshold})");
+                }
+                rb.angularVelocity = 0f;
+            }
+        }
+        
+        float forwardSpeed = -rb.angularVelocity * (boxCollider.size.x / 2f) * Mathf.Deg2Rad;
+        Vector2 velocity = rb.linearVelocity;
+        velocity.x = forwardSpeed * speedMultiplier;
+        rb.linearVelocity = velocity;
     }
 
     private void Shoot()
     {
         if (powerBitCharacterRenderer == null || projectileSpawner == null) return;
 
-        // Get aiming direction
         Vector2 aimDirection = projectileSpawner.GetAimingDirection();
-        
-        // Select which bit to use for this shot
         SmithCellData selectedBit = SelectBitForShot();
         
         if (selectedBit != null)
         {
-            // Use Power Bit for shooting
-            int damage = selectedBit.damage;
-            Rarity rarity = selectedBit.rarity;
-            string bitName = selectedBit.bitName;
-
-            // Spawn projectile
-            Projectile projectile = projectileSpawner.SpawnProjectile(rarity, damage, bitName);
-            
-            if (showDebugInfo)
-            {
-                Debug.Log($"Shot fired with Power Bit: {bitName} ({rarity}) - Damage: {damage}");
-            }
+            projectileSpawner.SpawnProjectile(selectedBit.rarity, selectedBit.damage, selectedBit.bitName);
         }
         else
         {
-            // Use default bit (no Power Bits available or none triggered)
-            Projectile projectile = projectileSpawner.SpawnProjectile(Rarity.Common, 1, "Default");
-            
-            if (showDebugInfo)
-            {
-                Debug.Log("Shot fired with default bit - Damage: 1");
-            }
+            projectileSpawner.SpawnProjectile(Rarity.Common, 1, "Default");
         }
     }
     
@@ -344,7 +267,6 @@ public class PowerBitPlayerController : MonoBehaviour
         var activeBits = powerBitCharacterRenderer.GetActiveBits();
         if (activeBits.Count == 0) return null;
         
-        // Create a list of bits with their probabilities
         List<SmithCellData> availableBits = new List<SmithCellData>();
         List<float> probabilities = new List<float>();
         
@@ -360,7 +282,6 @@ public class PowerBitPlayerController : MonoBehaviour
         
         if (availableBits.Count == 0) return null;
         
-        // Check if any bit triggers based on its probability
         for (int i = 0; i < availableBits.Count; i++)
         {
             if (Random.value < probabilities[i])
@@ -369,26 +290,7 @@ public class PowerBitPlayerController : MonoBehaviour
             }
         }
         
-        // No bit triggered, return null (will use default bit)
         return null;
-    }
-
-    private bool CheckGrounded()
-    {
-        // Get the bottom center of the collider
-        Vector2 boxCenter = boxCollider.bounds.center;
-        Vector2 boxSize = boxCollider.bounds.size;
-        Vector2 rayStart = new Vector2(boxCenter.x, boxCenter.y - boxSize.y/2);
-
-        // Cast a ray downward
-        RaycastHit2D hit = Physics2D.Raycast(rayStart, Vector2.down, groundCheckDistance, groundLayer);
-        
-        if (showGroundCheckDebug)
-        {
-            Debug.DrawRay(rayStart, Vector2.down * groundCheckDistance, hit.collider != null ? Color.green : Color.red);
-        }
-
-        return hit.collider != null;
     }
 
     public void LoadSmithBuild(SmithGridStateData gridState)
@@ -398,29 +300,10 @@ public class PowerBitPlayerController : MonoBehaviour
             powerBitCharacterRenderer.LoadCharacterFromSmithBuild(gridState);
             UpdateColliderSize();
 
-            Debug.Log("Smith build loaded into character!");
-            Debug.Log($"Total Power Bits: {gridState.cells.Count}");
-            
-            // Debug print all Power Bits
-            foreach (var cell in gridState.cells)
-            {
-                Debug.Log($"Power Bit at ({cell.x}, {cell.y}): {cell.bitName} ({cell.rarity}) - Damage: {cell.damage}");
-            }
-            
-            // Print total stats
-            Debug.Log($"Total Damage: {powerBitCharacterRenderer.GetTotalDamage()}");
-            Debug.Log($"Average Shooting Probability: {powerBitCharacterRenderer.GetAverageShootingProbability():P1}");
-            Debug.Log($"Movement Speed Multiplier: {GetMovementSpeedMultiplier():P1}");
-            
-            // Update spawn point position based on new grid size
             if (projectileSpawner != null)
             {
                 projectileSpawner.RefreshSpawnPointPosition();
             }
-        }
-        else
-        {
-            Debug.LogWarning("PowerBitCharacterRenderer not found! Cannot load Smith build.");
         }
     }
 
@@ -428,29 +311,13 @@ public class PowerBitPlayerController : MonoBehaviour
     {
         if (powerBitCharacterRenderer != null)
         {
-            // Get outer bits that can be damaged
             var outerBits = powerBitCharacterRenderer.GetOuterBits();
             if (outerBits.Count > 0)
             {
-                // Remove a random outer bit
                 int randomIndex = Random.Range(0, outerBits.Count);
                 Vector2Int bitToRemove = outerBits[randomIndex];
-                var bitData = powerBitCharacterRenderer.GetBitAt(bitToRemove);
-                
-                Debug.Log($"Removing Power Bit at ({bitToRemove.x}, {bitToRemove.y}): {bitData?.bitName} ({bitData?.rarity})");
-                
                 powerBitCharacterRenderer.RemoveBit(bitToRemove);
                 UpdateColliderSize();
-
-                // Print remaining bits
-                var remainingBits = powerBitCharacterRenderer.GetActiveBits();
-                Debug.Log($"Remaining Power Bits: {remainingBits.Count}");
-                Debug.Log($"Total Damage: {powerBitCharacterRenderer.GetTotalDamage()}");
-                Debug.Log($"Movement Speed Multiplier: {GetMovementSpeedMultiplier():P1}");
-            }
-            else
-            {
-                Debug.Log("No outer Power Bits available to damage!");
             }
         }
     }
@@ -459,76 +326,67 @@ public class PowerBitPlayerController : MonoBehaviour
     {
         if (powerBitCharacterRenderer == null || boxCollider == null) return;
 
-        // Get the bounds of the character from the renderer
         Bounds characterBounds = powerBitCharacterRenderer.GetCharacterBounds();
-        
-        // The character renderer is a child, so its bounds are already in local space relative to its own transform.
-        // Assuming the renderer's transform is at (0,0,0) relative to the player, we can use the bounds directly.
         Vector3 localCenter = characterBounds.center;
         Vector3 localSize = characterBounds.size;
 
-        // Ensure minimum collider size in case grid size is zero
         localSize.x = Mathf.Max(localSize.x, 0.25f);
         localSize.y = Mathf.Max(localSize.y, 0.25f);
 
-        // Update the collider size and offset
         boxCollider.size = new Vector2(localSize.x, localSize.y);
         boxCollider.offset = new Vector2(localCenter.x, localCenter.y);
-
-        if (showDebugInfo)
-        {
-            Debug.Log($"Collider size set to: {boxCollider.size}");
-            Debug.Log($"Collider offset set to: {boxCollider.offset}");
-            Debug.Log($"Using fixed grid bounds. Local center: {localCenter}, Local size: {localSize}");
-        }
     }
 
-    private void HandleRollingMovement(float moveInput)
+    private void HandleRollingStamina(bool isRolling)
     {
-        // Apply movement speed penalty based on number of Power Bits
-        float speedMultiplier = GetMovementSpeedMultiplier();
-        
-        if (Mathf.Abs(moveInput) > 0.1f)
+        if (showDebugInfo)
         {
-            // Apply torque for rolling movement (negated for correct direction)
-            float torque = -moveInput * rollTorque * speedMultiplier;
-            rb.AddTorque(torque, ForceMode2D.Force);
+            Debug.Log($"Rolling Stamina - IsRolling: {isRolling}, Level: {rollStaminaLevel:F2}, Depleted: {isRollStaminaDepleted}, Timer: {rollStaminaTimer:F1}");
+        }
+        
+        if (isRollStaminaDepleted)
+        {
+            rollStaminaTimer -= Time.deltaTime;
             
-            // Limit maximum roll speed
-            if (Mathf.Abs(rb.angularVelocity) > maxRollSpeed)
+            if (rollStaminaTimer <= 0f)
             {
-                rb.angularVelocity = Mathf.Sign(rb.angularVelocity) * maxRollSpeed;
+                isRollStaminaDepleted = false;
+                rollStaminaLevel = rollStaminaMax;
+                Debug.Log("=== ROLLING STAMINA RECOVERED! Can roll again ===");
             }
+        }
+        else if (isRolling)
+        {
+            // Deplete stamina while rolling (build rate = how fast it depletes)
+            rollStaminaLevel -= rollStaminaDepleteRate * Time.deltaTime;
             
             if (showDebugInfo)
             {
-                Debug.Log($"Rolling - Torque: {torque:F2}, Angular Velocity: {rb.angularVelocity:F1}°/s");
+                Debug.Log($"Stamina depleting: {rollStaminaLevel:F2} (build rate: {rollStaminaDepleteRate})");
+            }
+            
+            if (rollStaminaLevel <= 0f)
+            {
+                isRollStaminaDepleted = true;
+                rollStaminaTimer = rollStaminaCooldownTime;
+                rollStaminaLevel = 0f;
+                Debug.Log("=== ROLLING STAMINA DEPLETED! 5-second cooldown started ===");
             }
         }
-        else
+        else if (rollStaminaLevel < rollStaminaMax)
         {
-            // More aggressive stopping when no input
-            if (Mathf.Abs(rb.angularVelocity) > stopThreshold)
+            // Recover stamina when not rolling (decay rate = how fast it recovers)
+            rollStaminaLevel += rollStaminaRecoverRate * Time.deltaTime;
+            rollStaminaLevel = Mathf.Min(rollStaminaMax, rollStaminaLevel);
+            
+            if (showDebugInfo)
             {
-                // Apply strong damping to stop quickly
-                rb.angularVelocity *= rollDamping;
-            }
-            else
-            {
-                // Stop completely when below threshold
-                rb.angularVelocity = 0f;
+                Debug.Log($"Stamina recovering: {rollStaminaLevel:F2} (decay rate: {rollStaminaRecoverRate})");
             }
         }
-        
-        // Optional: Add some forward movement based on rotation for more realistic rolling
-        // This makes the box move forward as it rolls
-        float forwardSpeed = -rb.angularVelocity * (boxCollider.size.x / 2f) * Mathf.Deg2Rad;
-        Vector2 velocity = rb.linearVelocity;
-        velocity.x = forwardSpeed * speedMultiplier;
-        rb.linearVelocity = velocity;
     }
 
-    // Public getters for UI or other systems
+    // Public getters
     public float GetOverheatLevel() => overheatLevel;
     public float GetOverheatMax() => overheatMax;
     public float GetOverheatPercentage() => (overheatLevel / overheatMax) * 100f;
@@ -540,25 +398,16 @@ public class PowerBitPlayerController : MonoBehaviour
     public float GetShootingProbability() => powerBitCharacterRenderer?.GetAverageShootingProbability() ?? 0f;
     public int GetPowerBitCount() => powerBitCharacterRenderer?.GetActiveBits().Count ?? 0;
     public float GetCurrentMovementSpeedMultiplier() => GetMovementSpeedMultiplier();
-    
-    // Shooting-related getters
     public bool IsShooting() => isShooting;
     public float GetAimingAngle() => projectileSpawner?.GetAimingAngle() ?? 0f;
     public Vector2 GetAimingDirection() => projectileSpawner?.GetAimingDirection() ?? Vector2.right;
     public bool IsValidAimingDirection() => projectileSpawner?.IsValidAimingDirection() ?? false;
     public int GetActiveProjectileCount() => projectileSpawner?.GetActiveProjectileCount() ?? 0;
     
-    // Get current shooting stats
-    public string GetCurrentShootingStats()
-    {
-        if (powerBitCharacterRenderer == null) return "No Power Bits";
-        
-        var activeBits = powerBitCharacterRenderer.GetActiveBits();
-        if (activeBits.Count == 0) return "No Power Bits";
-        
-        int totalDamage = powerBitCharacterRenderer.GetTotalDamage();
-        float avgProbability = powerBitCharacterRenderer.GetAverageShootingProbability();
-        
-        return $"Power Bits: {activeBits.Count}, Total Damage: {totalDamage}, Avg Probability: {avgProbability:P1}";
-    }
+    // Rolling stamina getters
+    public float GetRollStaminaLevel() => rollStaminaLevel;
+    public float GetRollStaminaMax() => rollStaminaMax;
+    public float GetRollStaminaPercentage() => (rollStaminaLevel / rollStaminaMax) * 100f;
+    public bool IsRollStaminaDepleted() => isRollStaminaDepleted;
+    public float GetRollStaminaTimer() => rollStaminaTimer;
 } 

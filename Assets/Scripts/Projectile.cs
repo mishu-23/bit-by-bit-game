@@ -83,6 +83,18 @@ public class Projectile : MonoBehaviour
     {
         if (hasHit) return;
         
+        // Ignore collisions with other projectiles
+        if (other.GetComponent<Projectile>() != null)
+        {
+            return;
+        }
+        
+        // Ignore collisions with gatherer entities
+        if (other.GetComponent<GathererEntity>() != null)
+        {
+            return;
+        }
+        
         // Check if we hit a valid target
         if (((1 << other.gameObject.layer) & targetLayers) != 0)
         {

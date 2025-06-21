@@ -181,5 +181,12 @@ MonoBehaviour:
   groundY: 0.5
   detectionRange: 10
   minFollowDistance: 1
-  isFollowing: 0
+  accelerationMultiplier: 2
+  initialBoostForce: 12
+  accelerationTime: 0.5
+  maxHealth: 15
+  currentHealth: 0
+  isFollowing: 1
   followDelay: 0.5
+  fleeSpeed: 6
+  fleeTime: 3

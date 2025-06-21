@@ -170,7 +170,7 @@ MonoBehaviour:
   damage: 1
   targetLayers:
     serializedVersion: 2
-    m_Bits: 1
+    m_Bits: 65
   destroyOnHit: 1
   hitEffect: {fileID: 0}
   spriteRenderer: {fileID: 0}

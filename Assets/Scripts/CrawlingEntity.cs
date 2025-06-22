@@ -27,6 +27,7 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
     public float followDelay = 0.5f; // Delay before starting to follow
     public float fleeDistance = 8f; // How far to run away from player
     public float fleeSpeed = 6f; // Speed when fleeing
+    public float playerOffset = 0.5f; // Distance to maintain from player
 
     private Rigidbody2D rb;
     private SpriteRenderer spriteRenderer;
@@ -44,8 +45,21 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
         spriteRenderer = GetComponent<SpriteRenderer>();
         currentHealth = maxHealth;
         
-        // Allow collisions with player layer (assuming player is on layer 3)
-        Physics2D.IgnoreLayerCollision(6, 3, false);  // Entity vs Player
+        // Set up trigger collider for player detection
+        SetupTriggerCollider();
+    }
+
+    private void SetupTriggerCollider()
+    {
+        // Create a trigger collider for player detection
+        BoxCollider2D triggerCollider = gameObject.AddComponent<BoxCollider2D>();
+        triggerCollider.isTrigger = true;
+        triggerCollider.size = new Vector2(1.5f, 1.5f); // Slightly larger than the main collider
+        triggerCollider.offset = Vector2.zero;
+        
+        // Set the trigger to only detect the player layer
+        triggerCollider.includeLayers = 1 << 3; // Player layer (3)
+        triggerCollider.excludeLayers = 0;
     }
 
     private void Start()
@@ -100,10 +114,12 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
                 accelerationTimer = 0f; // Reset acceleration timer when starting to follow
             }
 
-            // Move towards player
+            // Calculate target position with offset
             float direction = Mathf.Sign(playerTarget.position.x - transform.position.x);
+            Vector3 targetPosition = playerTarget.position + new Vector3(direction * playerOffset, 0, 0);
+            float distanceToTarget = Vector2.Distance(transform.position, targetPosition);
             
-            // Calculate acceleration force
+            // Move towards target position (player position + offset)
             float currentMoveForce = moveForce;
             
             // Apply acceleration multiplier
@@ -121,8 +137,9 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
             float accelerationProgress = Mathf.Clamp01(accelerationTimer / accelerationTime);
             currentMoveForce *= (1f + accelerationProgress * 0.5f); // Up to 50% more force over time
             
-            // Apply the calculated force
-            rb.AddForce(new Vector2(direction * currentMoveForce, 0f), ForceMode2D.Force);
+            // Apply the calculated force towards the target position
+            Vector2 moveDirection = (targetPosition - transform.position).normalized;
+            rb.AddForce(moveDirection * currentMoveForce, ForceMode2D.Force);
             
             // Update last move direction for sprite flipping
             if (Mathf.Abs(rb.linearVelocity.x) > 0.1f)
@@ -140,16 +157,16 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
             }
 
             wasMoving = true;
-            Debug.Log($"CrawlingEntity {gameObject.name} following player, distance: {distanceToPlayer:F1}");
+            Debug.Log($"CrawlingEntity {gameObject.name} following player with offset, distance to target: {distanceToTarget:F1}");
         }
-        else if (distanceToPlayer <= minFollowDistance)
+        else if (distanceToPlayer <= minFollowDistance + playerOffset)
         {
-            // Stop when close enough to player (but don't collide - we'll flee instead)
+            // Stop when close enough to player (accounting for offset)
             rb.linearVelocity = Vector2.zero;
             isFollowing = false;
             wasMoving = false;
             accelerationTimer = 0f;
-            Debug.Log($"CrawlingEntity {gameObject.name} reached player, stopping at distance {distanceToPlayer:F1}");
+            Debug.Log($"CrawlingEntity {gameObject.name} reached player with offset, stopping at distance {distanceToPlayer:F1}");
         }
         else if (distanceToPlayer > detectionRange)
         {
@@ -235,27 +252,18 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
             isFleeing = true;
             accelerationTimer = 0f;
             
-            Debug.Log($"CrawlingEntity {gameObject.name} collided with player! Fleeing to x = {fleeX}");
+            Debug.Log($"CrawlingEntity {gameObject.name} detected player! Fleeing to x = {fleeX}");
         }
     }
 
     private void OnCollisionEnter2D(Collision2D collision)
     {
-        // Alternative collision detection for non-trigger colliders
+        // Only handle non-player collisions here (like walls, ground, etc.)
+        // Player detection is now handled by the trigger collider
         if (collision.gameObject.CompareTag("Player") || collision.gameObject.layer == 3)
         {
-            hasCollidedWithPlayer = true;
-            isFollowing = false;
-            
-            // Choose random flee target: either x = -40 or x = 40
-            float fleeX = Random.value > 0.5f ? -40f : 40f;
-            fleeTarget = new Vector3(fleeX, groundY, transform.position.z);
-            
-            // Start fleeing
-            isFleeing = true;
-            accelerationTimer = 0f;
-            
-            Debug.Log($"CrawlingEntity {gameObject.name} collided with player! Fleeing to x = {fleeX}");
+            // This shouldn't happen anymore since we're using a trigger for player detection
+            Debug.Log($"CrawlingEntity {gameObject.name} unexpected collision with player!");
         }
     }
 

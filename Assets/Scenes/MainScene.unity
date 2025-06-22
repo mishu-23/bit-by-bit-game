@@ -540,6 +540,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 7849938093549157807, guid: 6d4d03ca57d859745b794e779dbc7737, type: 3}
+      propertyPath: playerOffset
+      value: -1
+      objectReference: {fileID: 0}
     - target: {fileID: 9000817763735303982, guid: 6d4d03ca57d859745b794e779dbc7737, type: 3}
       propertyPath: m_Name
       value: CrawlingEntity
@@ -4569,6 +4573,67 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 7b4589cedad061b4fba57f396d3c068b, type: 3}
+--- !u!1001 &937234366
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 6792425975946503742, guid: 009100f8d98020746b957f8512d981d4, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 4.889036
+      objectReference: {fileID: 0}
+    - target: {fileID: 6792425975946503742, guid: 009100f8d98020746b957f8512d981d4, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 4.678608
+      objectReference: {fileID: 0}
+    - target: {fileID: 6792425975946503742, guid: 009100f8d98020746b957f8512d981d4, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 6792425975946503742, guid: 009100f8d98020746b957f8512d981d4, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6792425975946503742, guid: 009100f8d98020746b957f8512d981d4, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6792425975946503742, guid: 009100f8d98020746b957f8512d981d4, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6792425975946503742, guid: 009100f8d98020746b957f8512d981d4, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6792425975946503742, guid: 009100f8d98020746b957f8512d981d4, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6792425975946503742, guid: 009100f8d98020746b957f8512d981d4, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6792425975946503742, guid: 009100f8d98020746b957f8512d981d4, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7192383265648460540, guid: 009100f8d98020746b957f8512d981d4, type: 3}
+      propertyPath: bitData
+      value: 
+      objectReference: {fileID: 11400000, guid: 870e3c907ada897468d3c35dd14a6e44, type: 2}
+    - target: {fileID: 7894677405706821340, guid: 009100f8d98020746b957f8512d981d4, type: 3}
+      propertyPath: m_Name
+      value: BitDrop
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 009100f8d98020746b957f8512d981d4, type: 3}
 --- !u!1 &954758817
 GameObject:
   m_ObjectHideFlags: 0
@@ -5427,7 +5492,7 @@ MonoBehaviour:
   groundCheckDistance: 0.1
   groundLayer:
     serializedVersion: 2
-    m_Bits: 256
+    m_Bits: 257
   enableRolling: 1
   rollTorque: 40
   maxRollSpeed: 720
@@ -5459,9 +5524,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   bitSize: 1
   showDebugInfo: 1
-  rarePowerBitSprite: {fileID: -7854629474860912292, guid: 1b9c7b5e3b910aa44b8a3dfc0b85ed75, type: 3}
-  epicPowerBitSprite: {fileID: -8754744741259069018, guid: 313eac53656d27446a39c17818322829, type: 3}
-  legendaryPowerBitSprite: {fileID: -6850067910205024016, guid: 96a5ef004c04bba41bae3c20eaedc456, type: 3}
+  coreBitSprite: {fileID: 20392646, guid: d5ff2712258d2a64b9a3121d568334c1, type: 3}
+  rarePowerBitSprite: {fileID: 1702680170, guid: 1b9c7b5e3b910aa44b8a3dfc0b85ed75, type: 3}
+  epicPowerBitSprite: {fileID: 1627787500, guid: 313eac53656d27446a39c17818322829, type: 3}
+  legendaryPowerBitSprite: {fileID: 1014900286, guid: 85d494eb60e93f64a824dab86bae426c, type: 3}
   defaultBitSprite: {fileID: 4329407632164072968, guid: 39af66d79f33c9b4b918e99477f7161a, type: 3}
 --- !u!156049354 &1119771334
 Grid:
@@ -5624,6 +5690,51 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 0ad8eee254eb9a742bab87045b20b86b, type: 3}
+--- !u!1 &1251377145
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1251377147}
+  - component: {fileID: 1251377146}
+  m_Layer: 0
+  m_Name: BitCollectionManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1251377146
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1251377145}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0cc975c0d3adc8346869ec8a10a7e054, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  playerController: {fileID: 1119771332}
+--- !u!4 &1251377147
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1251377145}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 2.3979049, y: 5.132461, z: 1.9199322}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1298299889
 GameObject:
   m_ObjectHideFlags: 0
@@ -7700,10 +7811,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d26b887c8609223458f64b1ba78e0ace, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  coreBitSprite: {fileID: -2757887451555568444, guid: d5ff2712258d2a64b9a3121d568334c1, type: 3}
-  rarePowerBitSprite: {fileID: -7854629474860912292, guid: 1b9c7b5e3b910aa44b8a3dfc0b85ed75, type: 3}
-  epicPowerBitSprite: {fileID: -8754744741259069018, guid: 313eac53656d27446a39c17818322829, type: 3}
-  legendaryPowerBitSprite: {fileID: -6850067910205024016, guid: 96a5ef004c04bba41bae3c20eaedc456, type: 3}
+  coreBitSprite: {fileID: 20392646, guid: d5ff2712258d2a64b9a3121d568334c1, type: 3}
+  rarePowerBitSprite: {fileID: 1702680170, guid: 1b9c7b5e3b910aa44b8a3dfc0b85ed75, type: 3}
+  epicPowerBitSprite: {fileID: 1627787500, guid: 313eac53656d27446a39c17818322829, type: 3}
+  legendaryPowerBitSprite: {fileID: 1014900286, guid: 85d494eb60e93f64a824dab86bae426c, type: 3}
   testCoreBit: {fileID: 11400000, guid: 159aa8d6dad9ba44eaa8c5d27df15d97, type: 2}
   testRarePowerBit: {fileID: 11400000, guid: a6baf9c88191fa943a012efecc303740, type: 2}
   testEpicPowerBit: {fileID: 11400000, guid: 870e3c907ada897468d3c35dd14a6e44, type: 2}
@@ -8169,3 +8280,5 @@ SceneRoots:
   - {fileID: 2128649250}
   - {fileID: 1632665814}
   - {fileID: 270258503}
+  - {fileID: 937234366}
+  - {fileID: 1251377147}

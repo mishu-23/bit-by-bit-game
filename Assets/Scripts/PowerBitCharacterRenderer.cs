@@ -14,6 +14,7 @@ public class PowerBitCharacterRenderer : MonoBehaviour
     public float BitSize => bitSize;
 
     [Header("Bit Sprites")]
+    [SerializeField] private Sprite coreBitSprite;
     [SerializeField] private Sprite rarePowerBitSprite;
     [SerializeField] private Sprite epicPowerBitSprite;
     [SerializeField] private Sprite legendaryPowerBitSprite;
@@ -92,6 +93,12 @@ public class PowerBitCharacterRenderer : MonoBehaviour
     private void LoadBitSprites()
     {
         // Load sprites from inspector assignments
+        if (coreBitSprite != null)
+        {
+            bitSprites[Rarity.Common] = coreBitSprite;
+            CreateTileForRarity(Rarity.Common);
+        }
+        
         if (rarePowerBitSprite != null)
         {
             bitSprites[Rarity.Rare] = rarePowerBitSprite;

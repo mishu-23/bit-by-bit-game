@@ -7,6 +7,7 @@ public class SmithInteraction : MonoBehaviour
     // public BuildOverlayManager overlayManager; // Not needed for new menu
 
     public GameObject smithCanvas; // Assign in inspector
+    public SmithBuildManager smithBuildManager; // Assign in inspector
 
     private bool playerInRange = false;
 
@@ -35,13 +36,35 @@ public class SmithInteraction : MonoBehaviour
         if (playerInRange && Input.GetKeyDown(KeyCode.E))
         {
             if (smithCanvas != null)
+            {
                 smithCanvas.SetActive(true);
+                
+                // Load current build into the Smith UI
+                if (smithBuildManager != null)
+                {
+                    smithBuildManager.LoadCurrentBuild();
+                }
+                else
+                {
+                    Debug.LogWarning("SmithBuildManager not assigned! Cannot load current build.");
+                }
+            }
             // Optionally: Time.timeScale = 0; // Pause game
         }
 
         if (smithCanvas != null && smithCanvas.activeSelf && Input.GetKeyDown(KeyCode.Escape))
         {
-            smithCanvas.SetActive(false);
+            // Call the proper close method to revert changes
+            if (smithBuildManager != null)
+            {
+                smithBuildManager.CloseSmithMenu();
+            }
+            else
+            {
+                // Fallback: just hide the canvas if build manager is not assigned
+                smithCanvas.SetActive(false);
+                Debug.LogWarning("SmithBuildManager not assigned! Changes may not be reverted properly.");
+            }
             // Optionally: Time.timeScale = 1; // Resume game
         }
     }

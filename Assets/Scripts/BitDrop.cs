@@ -19,6 +19,12 @@ public class BitDrop : MonoBehaviour
     private bool playerInRange = false;
     private Transform playerTransform;
     
+    // Static reference to the prefab - assign this in the inspector of any BitDrop in the scene
+    private static GameObject bitDropPrefab;
+    
+    // Public static reference that can be assigned from anywhere
+    public static GameObject BitDropPrefab { get; set; }
+    
     private void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
@@ -210,15 +216,13 @@ public class BitDrop : MonoBehaviour
     // Public method to drop the bit at a specific position
     public static BitDrop CreateBitDrop(Bit bit, Vector3 position)
     {
-        // Load the prefab
-        GameObject dropPrefab = Resources.Load<GameObject>("Prefabs/BitDrop");
-        if (dropPrefab == null)
+        if (BitDropPrefab == null)
         {
-            Debug.LogError("BitDrop prefab not found in Resources/Prefabs/");
+            Debug.LogError("BitDropPrefab not assigned! Please assign the BitDrop prefab to BitDrop.BitDropPrefab from any script or inspector.");
             return null;
         }
         
-        GameObject dropObject = Instantiate(dropPrefab, position, Quaternion.identity);
+        GameObject dropObject = Instantiate(BitDropPrefab, position, Quaternion.identity);
         BitDrop bitDrop = dropObject.GetComponent<BitDrop>();
         
         if (bitDrop != null)

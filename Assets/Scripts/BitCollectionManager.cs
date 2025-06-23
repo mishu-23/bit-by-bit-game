@@ -8,6 +8,7 @@ public class BitCollectionManager : MonoBehaviour
     
     [Header("References")]
     public PowerBitPlayerController playerController;
+    public GameObject bitDropPrefab; // Assign the BitDrop prefab here
     
     private string buildFilePath;
     
@@ -30,6 +31,17 @@ public class BitCollectionManager : MonoBehaviour
         if (playerController == null)
         {
             playerController = FindObjectOfType<PowerBitPlayerController>();
+        }
+        
+        // Assign the BitDrop prefab to the static reference
+        if (bitDropPrefab != null)
+        {
+            BitDrop.BitDropPrefab = bitDropPrefab;
+            Debug.Log("BitDrop prefab assigned successfully!");
+        }
+        else
+        {
+            Debug.LogWarning("BitDrop prefab not assigned in BitCollectionManager! Please assign it in the inspector.");
         }
     }
     

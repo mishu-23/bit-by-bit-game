@@ -386,6 +386,87 @@ public class PowerBitPlayerController : MonoBehaviour
         }
     }
 
+    // Method for crawling entities to steal a random bit from the player's build
+    public Bit StealRandomBitFromBuild()
+    {
+        if (powerBitCharacterRenderer == null)
+        {
+            Debug.LogWarning("PowerBitCharacterRenderer is null! Cannot steal bit.");
+            return null;
+        }
+        
+        // Get all active bits from the character renderer
+        var activeBits = powerBitCharacterRenderer.GetActiveBits();
+        if (activeBits.Count == 0)
+        {
+            Debug.Log("No bits in player's build to steal!");
+            return null;
+        }
+        
+        // Select a random bit to steal
+        int randomIndex = Random.Range(0, activeBits.Count);
+        Vector2Int bitToSteal = activeBits[randomIndex];
+        
+        // Get the bit data before removing it
+        SmithCellData stolenBitData = powerBitCharacterRenderer.GetBitAt(bitToSteal);
+        if (stolenBitData == null)
+        {
+            Debug.LogWarning("Failed to get bit data for stealing!");
+            return null;
+        }
+        
+        // Remove the bit from the player's build
+        powerBitCharacterRenderer.RemoveBit(bitToSteal);
+        UpdateColliderSize();
+        
+        // Create a Bit object from the stolen data
+        Bit stolenBit = ScriptableObject.CreateInstance<Bit>();
+        stolenBit.bitName = stolenBitData.bitName;
+        stolenBit.bitType = stolenBitData.bitType;
+        stolenBit.rarity = stolenBitData.rarity;
+        stolenBit.damage = stolenBitData.damage;
+        stolenBit.shootingProbability = stolenBitData.shootingProbability;
+        
+        // Save the updated build (without the stolen bit)
+        SaveUpdatedBuild();
+        
+        Debug.Log($"Stole {stolenBit.bitName} from player's build at position ({bitToSteal.x}, {bitToSteal.y})");
+        return stolenBit;
+    }
+    
+    // Save the updated build after stealing a bit
+    private void SaveUpdatedBuild()
+    {
+        if (powerBitCharacterRenderer == null) return;
+        
+        // Create a new build state from the current character renderer
+        SmithGridStateData updatedBuild = new SmithGridStateData(powerBitCharacterRenderer.GetGridSize());
+        
+        // Get all active bits and their data
+        var activeBits = powerBitCharacterRenderer.GetActiveBits();
+        foreach (var bitPos in activeBits)
+        {
+            SmithCellData bitData = powerBitCharacterRenderer.GetBitAt(bitPos);
+            if (bitData != null)
+            {
+                updatedBuild.cells.Add(bitData);
+            }
+        }
+        
+        // Save to file
+        string filePath = System.IO.Path.Combine(Application.persistentDataPath, "smith_build.json");
+        try
+        {
+            string json = JsonUtility.ToJson(updatedBuild, true);
+            System.IO.File.WriteAllText(filePath, json);
+            Debug.Log($"Updated build saved after stealing bit. Remaining bits: {updatedBuild.cells.Count}");
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"Error saving updated build: {e.Message}");
+        }
+    }
+
     // Public getters
     public float GetOverheatLevel() => overheatLevel;
     public float GetOverheatMax() => overheatMax;

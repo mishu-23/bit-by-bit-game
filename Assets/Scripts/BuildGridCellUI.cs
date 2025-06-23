@@ -30,15 +30,17 @@ public class BuildGridCellUI : MonoBehaviour, IDropHandler, IPointerEnterHandler
         var draggedSlot = eventData.pointerDrag?.GetComponent<InventoryBitSlotUI>();
         if (draggedSlot != null)
         {
-            // Prevent multiple bits in one cell
+            // If there's already a bit in this cell, swap them
             if (currentBitSlot != null)
             {
-                // Optionally: return the existing bit to inventory or swap
-                Debug.Log("Grid cell already occupied. Drop ignored.");
-                return;
+                // Return the existing bit to inventory
+                ReturnBitToInventory(currentBitSlot);
+                
+                // Clear the current bit slot reference
+                currentBitSlot = null;
             }
 
-            // Reparent the slot to this grid cell
+            // Place the new bit in this grid cell
             draggedSlot.transform.SetParent(transform);
 
             RectTransform slotRect = draggedSlot.GetComponent<RectTransform>();
@@ -48,8 +50,73 @@ public class BuildGridCellUI : MonoBehaviour, IDropHandler, IPointerEnterHandler
             slotRect.anchoredPosition = Vector2.zero;
             currentBitSlot = draggedSlot;
             draggedSlot.MarkDroppedOnGridCell();
-            Debug.Log($"Dropped {draggedSlot.bitData.bitName} into grid cell!");
+            Debug.Log($"Dropped {draggedSlot.bitData.bitName} into grid cell! (Swapped with previous bit)");
         }
+    }
+
+    // Method to return a bit to the inventory
+    private void ReturnBitToInventory(InventoryBitSlotUI bitSlot)
+    {
+        // Find the inventory content area
+        Transform inventoryContent = FindInventoryContent();
+        if (inventoryContent != null)
+        {
+            // Move the bit to the inventory
+            bitSlot.transform.SetParent(inventoryContent);
+            
+            // Reset position and scale
+            RectTransform rectTransform = bitSlot.GetComponent<RectTransform>();
+            rectTransform.anchoredPosition = Vector2.zero;
+            bitSlot.transform.localScale = Vector3.one;
+            
+            // Reset anchors to match inventory slots
+            rectTransform.anchorMin = new Vector2(0, 0);
+            rectTransform.anchorMax = new Vector2(0, 0);
+            rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            
+            Debug.Log($"Returned {bitSlot.bitData?.bitName} to inventory (swapped out)");
+        }
+        else
+        {
+            Debug.LogWarning("Could not find inventory content area! Destroying swapped bit.");
+            // Fallback: destroy the bit if we can't find inventory
+            Destroy(bitSlot.gameObject);
+        }
+    }
+
+    // Find the inventory content area
+    private Transform FindInventoryContent()
+    {
+        // Look for the inventory content in the scene
+        Transform inventoryContent = GameObject.Find("InventoryContent")?.transform;
+        if (inventoryContent == null)
+        {
+            // Alternative: look for SmithInventoryTestPopulator and get its inventoryContent
+            SmithInventoryTestPopulator populator = FindObjectOfType<SmithInventoryTestPopulator>();
+            if (populator != null)
+            {
+                inventoryContent = populator.inventoryContent;
+            }
+        }
+        return inventoryContent;
+    }
+
+    // Method to set the current bit slot (used when loading saved data)
+    public void SetCurrentBitSlot(InventoryBitSlotUI bitSlot)
+    {
+        currentBitSlot = bitSlot;
+    }
+
+    // Method to get the current bit slot
+    public InventoryBitSlotUI GetCurrentBitSlot()
+    {
+        return currentBitSlot;
+    }
+
+    // Method to clear the cell when a bit is dragged out
+    public void ClearCurrentBitSlot()
+    {
+        currentBitSlot = null;
     }
 
     // Optional: method to clear the cell and return bit to inventory

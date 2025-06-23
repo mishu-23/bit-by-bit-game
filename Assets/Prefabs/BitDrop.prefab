@@ -176,7 +176,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b25ac604933878845ad897f5c8f8ea23, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  bitData: {fileID: 11400000, guid: 159aa8d6dad9ba44eaa8c5d27df15d97, type: 2}
+  bitData: {fileID: 0}
   collectionRange: 1
   collectionSpeed: 5
   groundLayer:

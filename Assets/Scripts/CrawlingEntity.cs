@@ -29,6 +29,11 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
     public float fleeSpeed = 6f; // Speed when fleeing
     public float playerOffset = 0.5f; // Distance to maintain from player
 
+    [Header("Attached Bit Drop")]
+    public Vector3 bitDropOffset = new Vector3(0f, 1.5f, 0f); // Offset above the entity
+    public float bitDropBobAmount = 0.2f; // How much the bit bobs up and down
+    public float bitDropBobSpeed = 2f; // Speed of the bobbing motion
+
     private Rigidbody2D rb;
     private SpriteRenderer spriteRenderer;
     private bool hasCollidedWithPlayer = false;
@@ -37,6 +42,12 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
     private bool wasMoving = false;
     private bool isFleeing = false;
     private Vector3 fleeTarget;
+    
+    // Attached bit drop
+    private GameObject attachedBitDrop;
+    private Bit attachedBitData;
+    private Vector3 originalBitDropOffset;
+    private float bobTimer = 0f;
 
     private void Awake()
     {
@@ -79,6 +90,49 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
             {
                 Debug.LogError($"CrawlingEntity {gameObject.name} couldn't find player with tag 'Player'!");
             }
+        }
+        
+        // Don't create attached bit drop initially - will steal one when fleeing
+        // CreateAttachedBitDrop();
+    }
+    
+    private void CreateAttachedBitDrop()
+    {
+        // Get a random bit for the attached drop
+        if (BitManager.Instance != null)
+        {
+            attachedBitData = BitManager.Instance.GetRandomBit();
+            if (attachedBitData != null)
+            {
+                // Create a simple bit drop object (without physics or collection)
+                attachedBitDrop = new GameObject($"AttachedBitDrop_{attachedBitData.bitName}");
+                attachedBitDrop.transform.SetParent(transform);
+                
+                // Add sprite renderer
+                SpriteRenderer bitSprite = attachedBitDrop.AddComponent<SpriteRenderer>();
+                bitSprite.sprite = attachedBitData.GetSprite();
+                bitSprite.sortingOrder = 1; // Render above the entity
+                
+                // Set initial position
+                originalBitDropOffset = bitDropOffset;
+                UpdateAttachedBitDropPosition();
+                
+                Debug.Log($"CrawlingEntity {gameObject.name} created attached bit drop: {attachedBitData.bitName}");
+            }
+        }
+    }
+    
+    private void UpdateAttachedBitDropPosition()
+    {
+        if (attachedBitDrop != null)
+        {
+            // Calculate bobbing motion
+            bobTimer += Time.deltaTime * bitDropBobSpeed;
+            float bobOffset = Mathf.Sin(bobTimer) * bitDropBobAmount;
+            
+            // Set position with offset and bobbing
+            Vector3 targetPosition = originalBitDropOffset + new Vector3(0f, bobOffset, 0f);
+            attachedBitDrop.transform.localPosition = targetPosition;
         }
     }
 
@@ -244,6 +298,9 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
             hasCollidedWithPlayer = true;
             isFollowing = false;
             
+            // Try to steal a bit from the player's build
+            StealBitFromPlayer();
+            
             // Choose random flee target: either x = -40 or x = 40
             float fleeX = Random.value > 0.5f ? -40f : 40f;
             fleeTarget = new Vector3(fleeX, groundY, transform.position.z);
@@ -253,6 +310,64 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
             accelerationTimer = 0f;
             
             Debug.Log($"CrawlingEntity {gameObject.name} detected player! Fleeing to x = {fleeX}");
+        }
+    }
+    
+    private void StealBitFromPlayer()
+    {
+        // Don't steal if we already have a bit attached
+        if (attachedBitData != null)
+        {
+            Debug.Log($"CrawlingEntity {gameObject.name} already has a bit attached ({attachedBitData.bitName}), won't steal another one!");
+            return;
+        }
+        
+        // Try to get the player controller to access the build
+        if (playerTarget != null)
+        {
+            PowerBitPlayerController playerController = playerTarget.GetComponent<PowerBitPlayerController>();
+            if (playerController != null)
+            {
+                // Try to steal a random bit from the player's build
+                Bit stolenBit = playerController.StealRandomBitFromBuild();
+                if (stolenBit != null)
+                {
+                    // Create the attached bit drop with the stolen bit
+                    CreateAttachedBitDropWithBit(stolenBit);
+                    Debug.Log($"CrawlingEntity {gameObject.name} stole {stolenBit.bitName} from player's build!");
+                }
+                else
+                {
+                    Debug.Log($"CrawlingEntity {gameObject.name} tried to steal a bit but player's build is empty!");
+                }
+            }
+            else
+            {
+                Debug.LogWarning($"CrawlingEntity {gameObject.name} couldn't find PowerBitPlayerController on player!");
+            }
+        }
+    }
+    
+    private void CreateAttachedBitDropWithBit(Bit bit)
+    {
+        if (bit != null)
+        {
+            attachedBitData = bit;
+            
+            // Create a simple bit drop object (without physics or collection)
+            attachedBitDrop = new GameObject($"AttachedBitDrop_{attachedBitData.bitName}");
+            attachedBitDrop.transform.SetParent(transform);
+            
+            // Add sprite renderer
+            SpriteRenderer bitSprite = attachedBitDrop.AddComponent<SpriteRenderer>();
+            bitSprite.sprite = attachedBitData.GetSprite();
+            bitSprite.sortingOrder = 1; // Render above the entity
+            
+            // Set initial position
+            originalBitDropOffset = bitDropOffset;
+            UpdateAttachedBitDropPosition();
+            
+            Debug.Log($"CrawlingEntity {gameObject.name} created attached bit drop: {attachedBitData.bitName}");
         }
     }
 
@@ -329,7 +444,61 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
         if (currentHealth <= 0)
         {
             Debug.Log($"CrawlingEntity {gameObject.name} destroyed!");
+            
+            // Drop the stolen bit if we have one, otherwise drop a random bit
+            if (attachedBitData != null)
+            {
+                DropStolenBit();
+                DropRandomBit();
+
+            }
+            else
+            {
+                DropRandomBit();
+            }
+            
             Destroy(gameObject);
         }
+    }
+    
+    private void DropStolenBit()
+    {
+        if (attachedBitData != null)
+        {
+            // Create a real bit drop at entity's position
+            Vector3 dropPosition = transform.position + Vector3.up * 0.5f; // Slightly above the entity
+            BitDrop.CreateBitDrop(attachedBitData, dropPosition);
+            Debug.Log($"CrawlingEntity {gameObject.name} dropped stolen bit: {attachedBitData.bitName} (Type: {attachedBitData.bitType}, Rarity: {attachedBitData.rarity})!");
+        }
+    }
+    
+    private void DropRandomBit()
+    {
+        // Get a random bit from BitManager
+        if (BitManager.Instance != null)
+        {
+            Bit randomBit = BitManager.Instance.GetRandomBit();
+            if (randomBit != null)
+            {
+                // Create bit drop at entity's position
+                Vector3 dropPosition = transform.position + Vector3.up * 0.5f; // Slightly above the entity
+                BitDrop.CreateBitDrop(randomBit, dropPosition);
+                Debug.Log($"CrawlingEntity {gameObject.name} dropped {randomBit.bitName} (Type: {randomBit.bitType}, Rarity: {randomBit.rarity})!");
+            }
+            else
+            {
+                Debug.LogWarning("BitManager returned null bit for drop!");
+            }
+        }
+        else
+        {
+            Debug.LogWarning("BitManager not found! Cannot drop bit.");
+        }
+    }
+
+    private void Update()
+    {
+        // Update attached bit drop position
+        UpdateAttachedBitDropPosition();
     }
 } 

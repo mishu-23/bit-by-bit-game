@@ -82,4 +82,29 @@ public class BitManager : MonoBehaviour
         
         Debug.Log("=== Bit System Test Complete ===");
     }
+    
+    public Bit GetRandomBit()
+    {
+        // Create a list of available bits
+        System.Collections.Generic.List<Bit> availableBits = new System.Collections.Generic.List<Bit>();
+        
+        if (testCoreBit != null)
+            availableBits.Add(testCoreBit);
+        if (testRarePowerBit != null)
+            availableBits.Add(testRarePowerBit);
+        if (testEpicPowerBit != null)
+            availableBits.Add(testEpicPowerBit);
+        if (testLegendaryPowerBit != null)
+            availableBits.Add(testLegendaryPowerBit);
+        
+        // Return a random bit from the available ones
+        if (availableBits.Count > 0)
+        {
+            int randomIndex = Random.Range(0, availableBits.Count);
+            return availableBits[randomIndex];
+        }
+        
+        Debug.LogWarning("No bits available for random selection!");
+        return null;
+    }
 } 

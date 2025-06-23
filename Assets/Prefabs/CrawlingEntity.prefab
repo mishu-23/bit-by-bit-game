@@ -188,5 +188,6 @@ MonoBehaviour:
   currentHealth: 0
   isFollowing: 1
   followDelay: 0.5
+  fleeDistance: 8
   fleeSpeed: 6
-  fleeTime: 3
+  playerOffset: -1

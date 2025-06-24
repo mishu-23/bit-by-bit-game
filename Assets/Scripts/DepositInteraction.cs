@@ -3,12 +3,12 @@ using UnityEngine.UI;
 
 public class DepositInteraction : MonoBehaviour
 {
-    [Header("Assign the E_Icon child here")]
+    [Header("Assign the Q_Icon and E_Icon children here")]
+    public GameObject qIcon;
     public GameObject eIcon;
     
-    [Header("Pixel Retrieval Settings")]
-    [SerializeField] private float longPressDuration = 2f;
-    [SerializeField] private int availablePixels = 10; // Number of pixels available to retrieve
+    [Header("Core Bit Deposit Settings")]
+    [SerializeField] private int coreBitCount = 10; // Number of Core Bits in the deposit
     
     [Header("Visual Feedback")]
     [SerializeField] private Image progressBar; // Optional radial fill for progress
@@ -16,44 +16,22 @@ public class DepositInteraction : MonoBehaviour
     [SerializeField] private Color emptyColor = Color.gray;
     
     private bool playerInRange = false;
-    private bool isLongPressing = false;
-    private float longPressTimer = 0f;
+    private PowerBitPlayerController playerController;
     
     private void Start()
     {
-        if (eIcon != null)
-        {
-            // Compensate for parent scale to keep E_Icon consistent size
-            CompensateParentScale();
-        }
-    }
-
-    private void CompensateParentScale()
-    {
-        if (eIcon != null)
-        {
-            Vector3 parentScale = transform.localScale;
-            Vector3 compensationScale = new Vector3(
-                parentScale.x != 0 ? 1f / parentScale.x : 1f,
-                parentScale.y != 0 ? 1f / parentScale.y : 1f,
-                parentScale.z != 0 ? 1f / parentScale.z : 1f
-            );
-            eIcon.transform.localScale = compensationScale;
-            
-            // Set E_Icon to always be at y = 8 in world space
-            Vector3 worldPosition = eIcon.transform.position;
-            worldPosition.y = 8f;
-            eIcon.transform.position = worldPosition;
-        }
+        if (qIcon != null) qIcon.SetActive(false);
+        if (eIcon != null) eIcon.SetActive(false);
     }
 
     private void OnTriggerEnter2D(Collider2D other)
     {
         if (other.CompareTag("Player"))
         {
-            if (eIcon != null)
-                eIcon.SetActive(true);
+            if (qIcon != null) qIcon.SetActive(true);
+            if (eIcon != null) eIcon.SetActive(true);
             playerInRange = true;
+            playerController = other.GetComponent<PowerBitPlayerController>();
         }
     }
 
@@ -61,100 +39,139 @@ public class DepositInteraction : MonoBehaviour
     {
         if (other.CompareTag("Player"))
         {
-            if (eIcon != null)
-                eIcon.SetActive(false);
+            if (qIcon != null) qIcon.SetActive(false);
+            if (eIcon != null) eIcon.SetActive(false);
             playerInRange = false;
-            
-            // Reset long press when leaving
-            isLongPressing = false;
-            longPressTimer = 0f;
-            UpdateVisualFeedback();
+            playerController = null;
         }
     }
 
     private void Update()
     {
-        if (playerInRange)
+        if (!playerInRange || playerController == null) return;
+        
+        // Q: Give Core Bit to player
+        if (Input.GetKeyDown(KeyCode.Q))
         {
-            HandleLongPress();
+            TryGiveCoreBitToPlayer();
+        }
+        // E: Take Core Bit from player
+        if (Input.GetKeyDown(KeyCode.E))
+        {
+            TryTakeCoreBitFromPlayer();
         }
     }
 
-    private void HandleLongPress()
+    private void TryGiveCoreBitToPlayer()
     {
-        if (Input.GetKey(KeyCode.E))
+        if (coreBitCount <= 0)
         {
-            if (!isLongPressing)
-            {
-                isLongPressing = true;
-                longPressTimer = 0f;
-            }
-
-            longPressTimer += Time.deltaTime;
-            UpdateVisualFeedback();
-
-            if (longPressTimer >= longPressDuration)
-            {
-                RetrievePixel();
-                isLongPressing = false;
-                longPressTimer = 0f;
-                UpdateVisualFeedback();
-            }
+            Debug.Log("Deposit is empty! No Core Bits to give.");
+            return;
+        }
+        if (!PlayerHasBuildSpace())
+        {
+            Debug.Log("Player's build is full! Cannot add Core Bit.");
+            return;
+        }
+        // Give Core Bit
+        Bit coreBit = BitManager.Instance?.testCoreBit;
+        if (coreBit == null)
+        {
+            Debug.LogWarning("No Core Bit asset assigned in BitManager!");
+            return;
+        }
+        bool added = BitCollectionManager.Instance.CollectBit(coreBit);
+        if (added)
+        {
+            coreBitCount--;
+            Debug.Log($"Player took a Core Bit from deposit. Core Bits left: {coreBitCount}");
         }
         else
         {
-            if (isLongPressing)
-            {
-                isLongPressing = false;
-                longPressTimer = 0f;
-                UpdateVisualFeedback();
-            }
+            Debug.Log("Failed to add Core Bit to player's build (maybe full).");
         }
     }
 
-    private void RetrievePixel()
+    private void TryTakeCoreBitFromPlayer()
     {
-        if (availablePixels > 0)
+        if (!PlayerHasCoreBit())
         {
-            availablePixels--;
-            Debug.Log($"Pixel retrieved from Deposit! Available pixels: {availablePixels}");
-            
-            // TODO: Add pixel to player's inventory here
-            // For now, just show in console
+            Debug.Log("Player has no Core Bit to deposit!");
+            return;
+        }
+        // Remove Core Bit from player
+        Bit removed = RemoveCoreBitFromPlayer();
+        if (removed != null)
+        {
+            coreBitCount++;
+            Debug.Log($"Player deposited a Core Bit. Core Bits in deposit: {coreBitCount}");
         }
         else
         {
-            Debug.Log("Deposit is empty! No more pixels available.");
+            Debug.Log("Failed to remove Core Bit from player's build.");
         }
     }
 
-    private void UpdateVisualFeedback()
+    private bool PlayerHasBuildSpace()
     {
-        if (progressBar != null)
+        return BitCollectionManager.Instance != null && BitCollectionManager.Instance.HasEmptySpace();
+    }
+
+    private bool PlayerHasCoreBit()
+    {
+        if (playerController == null || playerController.powerBitCharacterRenderer == null) return false;
+        var activeBits = playerController.powerBitCharacterRenderer.GetActiveBits();
+        foreach (var pos in activeBits)
         {
-            if (availablePixels > 0)
+            var bit = playerController.powerBitCharacterRenderer.GetBitAt(pos);
+            if (bit != null && bit.bitType == BitType.CoreBit)
+                return true;
+        }
+        return false;
+    }
+
+    private Bit RemoveCoreBitFromPlayer()
+    {
+        if (playerController == null || playerController.powerBitCharacterRenderer == null) return null;
+        var activeBits = playerController.powerBitCharacterRenderer.GetActiveBits();
+        // Remove the first Core Bit found
+        foreach (var pos in activeBits)
+        {
+            var bitData = playerController.powerBitCharacterRenderer.GetBitAt(pos);
+            if (bitData != null && bitData.bitType == BitType.CoreBit)
             {
-                progressBar.gameObject.SetActive(true);
-                progressBar.color = progressColor;
-                progressBar.fillAmount = isLongPressing ? longPressTimer / longPressDuration : 0f;
-            }
-            else
-            {
-                progressBar.color = emptyColor;
-                progressBar.fillAmount = 1f;
+                playerController.powerBitCharacterRenderer.RemoveBit(pos);
+                // Create a Bit object to return
+                Bit bit = ScriptableObject.CreateInstance<Bit>();
+                bit.bitName = bitData.bitName;
+                bit.bitType = bitData.bitType;
+                bit.rarity = bitData.rarity;
+                bit.damage = bitData.damage;
+                bit.shootingProbability = bitData.shootingProbability;
+                // Save updated build
+                playerController.SaveUpdatedBuild();
+                return bit;
             }
         }
+        return null;
     }
 
-    // Public methods for external access
-    public int GetAvailablePixels()
+    public void AddCoreBitFromGatherer()
     {
-        return availablePixels;
+        coreBitCount++;
+        Debug.Log($"Gatherer deposited a Core Bit. Core Bits in deposit: {coreBitCount}");
     }
-
-    public void AddPixels(int amount)
+    
+    public bool RemoveCoreBit()
     {
-        availablePixels += amount;
-        Debug.Log($"Added {amount} pixels to Deposit. Total available: {availablePixels}");
+        if (coreBitCount > 0)
+        {
+            coreBitCount--;
+            Debug.Log($"Core Bit removed from deposit. Core Bits left: {coreBitCount}");
+            return true;
+        }
+        Debug.Log("Cannot remove Core Bit - deposit is empty!");
+        return false;
     }
 } 

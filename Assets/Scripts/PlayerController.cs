@@ -10,6 +10,11 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float moveSpeed = 5f;
     [SerializeField] private float groundCheckDistance = 0.1f;
     [SerializeField] private LayerMask groundLayer;
+    
+    [Header("Movement Boundaries")]
+    [SerializeField] private bool enableXBoundaries = true;
+    [SerializeField] private float minX = -40f;
+    [SerializeField] private float maxX = 40f;
 
     [Header("Character Settings")]
     [SerializeField] private CharacterRenderer characterRenderer;
@@ -119,6 +124,22 @@ public class PlayerController : MonoBehaviour
         float moveInput = Input.GetAxisRaw("Horizontal");
         Vector2 velocity = rb.linearVelocity;
         velocity.x = moveInput * moveSpeed;
+        
+        // Apply movement boundaries
+        if (enableXBoundaries)
+        {
+            Vector3 nextPosition = transform.position + new Vector3(velocity.x * Time.fixedDeltaTime, 0, 0);
+            if (nextPosition.x < minX || nextPosition.x > maxX)
+            {
+                velocity.x = 0f; // Stop horizontal movement if it would go beyond boundaries
+                
+                // Clamp current position to boundaries if somehow went beyond
+                Vector3 clampedPosition = transform.position;
+                clampedPosition.x = Mathf.Clamp(clampedPosition.x, minX, maxX);
+                transform.position = clampedPosition;
+            }
+        }
+        
         rb.linearVelocity = velocity;
     }
 

@@ -11,6 +11,11 @@ public class PowerBitPlayerController : MonoBehaviour
     [SerializeField] private float groundCheckDistance = 0.1f;
     [SerializeField] private LayerMask groundLayer;
     
+    [Header("Movement Boundaries")]
+    [SerializeField] private bool enableXBoundaries = true;
+    [SerializeField] private float minX = -40f;
+    [SerializeField] private float maxX = 40f;
+    
     [Header("Rolling Settings")]
     [SerializeField] private bool enableRolling = true;
     [SerializeField] private float rollTorque = 10f;
@@ -25,7 +30,7 @@ public class PowerBitPlayerController : MonoBehaviour
     [SerializeField] private float rollStaminaCooldownTime = 5f; // Cooldown time when stamina is depleted
 
     [Header("Character Settings")]
-    [SerializeField] private PowerBitCharacterRenderer powerBitCharacterRenderer;
+    [SerializeField] public PowerBitCharacterRenderer powerBitCharacterRenderer;
 
     [Header("Combat Settings")]
     [SerializeField] private float shootingCooldown = 0.1f;
@@ -127,6 +132,22 @@ public class PowerBitPlayerController : MonoBehaviour
             Vector2 velocity = rb.linearVelocity;
             float speedMultiplier = GetMovementSpeedMultiplier();
             velocity.x = moveInput * moveSpeed * speedMultiplier;
+            
+            // Apply movement boundaries
+            if (enableXBoundaries)
+            {
+                Vector3 nextPosition = transform.position + new Vector3(velocity.x * Time.fixedDeltaTime, 0, 0);
+                if (nextPosition.x < minX || nextPosition.x > maxX)
+                {
+                    velocity.x = 0f; // Stop horizontal movement if it would go beyond boundaries
+                    
+                    // Clamp current position to boundaries if somehow went beyond
+                    Vector3 clampedPosition = transform.position;
+                    clampedPosition.x = Mathf.Clamp(clampedPosition.x, minX, maxX);
+                    transform.position = clampedPosition;
+                }
+            }
+            
             rb.linearVelocity = velocity;
         }
 
@@ -240,6 +261,23 @@ public class PowerBitPlayerController : MonoBehaviour
         float forwardSpeed = -rb.angularVelocity * (boxCollider.size.x / 2f) * Mathf.Deg2Rad;
         Vector2 velocity = rb.linearVelocity;
         velocity.x = forwardSpeed * speedMultiplier;
+        
+        // Apply movement boundaries for rolling
+        if (enableXBoundaries)
+        {
+            Vector3 nextPosition = transform.position + new Vector3(velocity.x * Time.fixedDeltaTime, 0, 0);
+            if (nextPosition.x < minX || nextPosition.x > maxX)
+            {
+                velocity.x = 0f; // Stop horizontal movement if it would go beyond boundaries
+                rb.angularVelocity = 0f; // Also stop rolling
+                
+                // Clamp current position to boundaries if somehow went beyond
+                Vector3 clampedPosition = transform.position;
+                clampedPosition.x = Mathf.Clamp(clampedPosition.x, minX, maxX);
+                transform.position = clampedPosition;
+            }
+        }
+        
         rb.linearVelocity = velocity;
     }
 
@@ -435,7 +473,7 @@ public class PowerBitPlayerController : MonoBehaviour
     }
     
     // Save the updated build after stealing a bit
-    private void SaveUpdatedBuild()
+    public void SaveUpdatedBuild()
     {
         if (powerBitCharacterRenderer == null) return;
         

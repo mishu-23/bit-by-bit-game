@@ -182,6 +182,28 @@ public class GathererEntity : MonoBehaviour
         Debug.Log($"Entity {gameObject.name} depositing for {depositTime} seconds...");
         yield return new WaitForSeconds(depositTime);
         
+        // Find the deposit building and add a core bit
+        if (depositPoint != null)
+        {
+            DepositInteraction deposit = depositPoint.GetComponent<DepositInteraction>();
+            if (deposit == null)
+            {
+                deposit = depositPoint.GetComponentInChildren<DepositInteraction>();
+            }
+            if (deposit == null)
+            {
+                deposit = FindObjectOfType<DepositInteraction>();
+            }
+            if (deposit != null)
+            {
+                deposit.AddCoreBitFromGatherer();
+            }
+            else
+            {
+                Debug.LogWarning("No DepositInteraction found for gatherer to deposit into!");
+            }
+        }
+        
         Debug.Log($"Entity {gameObject.name} finished depositing, starting wander phase...");
         StartCoroutine(Wander());
     }

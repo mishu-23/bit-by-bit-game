@@ -48,6 +48,30 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
     private Bit attachedBitData;
     private Vector3 originalBitDropOffset;
     private float bobTimer = 0f;
+    
+    // Mechanic selection
+    private enum StealMechanic
+    {
+        StealFromPlayer,
+        StealFromDeposit,
+        FollowGatherer
+    }
+    private StealMechanic chosenMechanic;
+    private Transform depositTarget;
+    private bool isMovingToDeposit = false;
+    
+    // Gatherer following mechanic
+    private Transform gathererTarget;
+    private bool isFollowingGatherer = false;
+    private float gathererDetectionRange = 15f;
+    private float gathererSearchInterval = 2f; // Search for gatherers every 2 seconds
+    private float lastGathererSearchTime = 0f;
+    
+    // Gatherer carrying mechanic
+    private GameObject carriedGatherer;
+    private bool isCarryingGatherer = false;
+    private Vector3 gathererCarryOffset = new Vector3(0f, 1.2f, 0f); // Offset for carried gatherer
+    private float gathererTakeDistance = 1.5f; // Distance at which to take the gatherer
 
     private void Awake()
     {
@@ -77,6 +101,23 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
     {
         transform.position = new Vector3(transform.position.x, groundY, transform.position.z);
         
+        // Choose which mechanic to use - random between all 3
+        float randomValue = Random.value;
+        if (randomValue < 0.33f)
+        {
+            chosenMechanic = StealMechanic.StealFromPlayer;
+        }
+        else if (randomValue < 0.66f)
+        {
+            chosenMechanic = StealMechanic.StealFromDeposit;
+        }
+        else
+        {
+            chosenMechanic = StealMechanic.FollowGatherer;
+        }
+        
+        Debug.Log($"CrawlingEntity {gameObject.name} chose mechanic: {chosenMechanic}");
+        
         // Find player if not assigned
         if (playerTarget == null)
         {
@@ -90,6 +131,37 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
             {
                 Debug.LogError($"CrawlingEntity {gameObject.name} couldn't find player with tag 'Player'!");
             }
+        }
+        
+        // Find deposit if needed for deposit stealing mechanic
+        if (chosenMechanic == StealMechanic.StealFromDeposit)
+        {
+            GameObject deposit = GameObject.Find("Deposit");
+            if (deposit != null)
+            {
+                depositTarget = deposit.transform;
+                Debug.Log($"CrawlingEntity {gameObject.name} found deposit at: {depositTarget.position}");
+                // Start moving to deposit immediately
+                StartMovingToDeposit();
+            }
+            else
+            {
+                Debug.LogWarning($"CrawlingEntity {gameObject.name} couldn't find deposit! Falling back to player stealing.");
+                chosenMechanic = StealMechanic.StealFromPlayer;
+            }
+        }
+        
+        // Find gatherer for following mechanic
+        GathererEntity gatherer = FindObjectOfType<GathererEntity>();
+        if (gatherer != null)
+        {
+            gathererTarget = gatherer.transform;
+            isFollowingGatherer = true;
+            Debug.Log($"CrawlingEntity {gameObject.name} found gatherer: {gatherer.name} at position {gatherer.transform.position}");
+        }
+        else
+        {
+            Debug.LogError($"CrawlingEntity {gameObject.name} couldn't find any GathererEntity in the scene!");
         }
         
         // Don't create attached bit drop initially - will steal one when fleeing
@@ -240,43 +312,21 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
 
     private void HandleFleeing()
     {
-        // Calculate distance to flee target
-        float distanceToFleeTarget = Mathf.Abs(transform.position.x - fleeTarget.x);
+        if (fleeTarget == Vector3.zero) return;
         
-        if (distanceToFleeTarget > 0.5f)
+        float distanceToFleeTarget = Vector3.Distance(transform.position, fleeTarget);
+        
+        // Check if we've reached the flee target
+        if (distanceToFleeTarget < 1f)
         {
-            // Move towards flee target
-            float direction = Mathf.Sign(fleeTarget.x - transform.position.x);
-            
-            // Use flee speed for faster movement
-            float currentMoveForce = fleeSpeed * accelerationMultiplier;
-            
-            // Apply the force
-            rb.AddForce(new Vector2(direction * currentMoveForce, 0f), ForceMode2D.Force);
-            
-            // Update last move direction for sprite flipping
-            if (Mathf.Abs(rb.linearVelocity.x) > 0.1f)
-            {
-                lastMoveDirection = Mathf.Sign(rb.linearVelocity.x);
-            }
-            
-            // Flip sprite to face movement direction
-            FlipSpriteToFaceDirection();
-            
-            // Limit speed to flee speed
-            if (Mathf.Abs(rb.linearVelocity.x) > fleeSpeed)
-            {
-                rb.linearVelocity = new Vector2(Mathf.Sign(rb.linearVelocity.x) * fleeSpeed, 0f);
-            }
-            
-            Debug.Log($"CrawlingEntity {gameObject.name} fleeing to x = {fleeTarget.x:F1}, distance: {distanceToFleeTarget:F1}");
-        }
-        else
-        {
-            // Reached flee target, despawn the entity
-            Debug.Log($"CrawlingEntity {gameObject.name} reached flee target at x = {fleeTarget.x:F1}, despawning");
+            // Drop the stolen bit and destroy entity
+            DropStolenBit();
             Destroy(gameObject);
+            return;
         }
+        
+        // Move towards flee target
+        MoveTowardsTarget(fleeTarget, fleeSpeed);
     }
 
     private void FlipSpriteToFaceDirection()
@@ -292,24 +342,25 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
 
     private void OnTriggerEnter2D(Collider2D other)
     {
-        // Check if we hit the player
-        if (other.CompareTag("Player") || other.gameObject.layer == 3)
+        if (other.CompareTag("Player") && !hasCollidedWithPlayer)
         {
             hasCollidedWithPlayer = true;
-            isFollowing = false;
             
-            // Try to steal a bit from the player's build
-            StealBitFromPlayer();
-            
-            // Choose random flee target: either x = -40 or x = 40
-            float fleeX = Random.value > 0.5f ? -40f : 40f;
-            fleeTarget = new Vector3(fleeX, groundY, transform.position.z);
-            
-            // Start fleeing
-            isFleeing = true;
-            accelerationTimer = 0f;
-            
-            Debug.Log($"CrawlingEntity {gameObject.name} detected player! Fleeing to x = {fleeX}");
+            if (chosenMechanic == StealMechanic.StealFromPlayer)
+            {
+                // Original mechanic: steal from player's build
+                StealBitFromPlayer();
+                // Start fleeing after stealing
+                StartFleeing();
+            }
+            else if (chosenMechanic == StealMechanic.StealFromDeposit)
+            {
+                // If we haven't reached the deposit yet, start moving to it
+                if (!isMovingToDeposit && depositTarget != null)
+                {
+                    StartMovingToDeposit();
+                }
+            }
         }
     }
     
@@ -393,7 +444,7 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
         Gizmos.DrawWireSphere(transform.position, minFollowDistance);
         
         // Show current state
-        if (isFollowing)
+        if (isFollowing || isFollowingGatherer)
         {
             Gizmos.color = Color.green;
             Gizmos.DrawWireSphere(transform.position, 0.3f);
@@ -404,11 +455,32 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
             Gizmos.DrawWireSphere(transform.position, 0.2f);
         }
 
-        // Draw line to player if following
-        if (isFollowing && playerTarget != null)
+        // Draw line to player if following player
+        if (isFollowing && playerTarget != null && chosenMechanic == StealMechanic.StealFromPlayer)
         {
             Gizmos.color = Color.blue;
             Gizmos.DrawLine(transform.position, playerTarget.position);
+        }
+        
+        // Draw line to deposit if moving to deposit
+        if (isMovingToDeposit && depositTarget != null && chosenMechanic == StealMechanic.StealFromDeposit)
+        {
+            Gizmos.color = Color.red;
+            Gizmos.DrawLine(transform.position, depositTarget.position);
+        }
+        
+        // Draw line to gatherer if following gatherer
+        if (isFollowingGatherer && gathererTarget != null && chosenMechanic == StealMechanic.FollowGatherer)
+        {
+            Gizmos.color = Color.cyan;
+            Gizmos.DrawLine(transform.position, gathererTarget.position);
+        }
+        
+        // Show if carrying a gatherer
+        if (isCarryingGatherer)
+        {
+            Gizmos.color = Color.magenta;
+            Gizmos.DrawWireCube(transform.position + gathererCarryOffset, Vector3.one * 0.5f);
         }
     }
 
@@ -417,7 +489,16 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
     {
         hasCollidedWithPlayer = false;
         isFollowing = false;
+        isFollowingGatherer = false;
         isFleeing = false;
+        isMovingToDeposit = false;
+        
+        // Drop gatherer if carrying one
+        if (isCarryingGatherer)
+        {
+            DropGatherer();
+        }
+        
         rb.linearVelocity = Vector2.zero;
         accelerationTimer = 0f;
         wasMoving = false;
@@ -444,6 +525,12 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
         if (currentHealth <= 0)
         {
             Debug.Log($"CrawlingEntity {gameObject.name} destroyed!");
+            
+            // Drop the carried gatherer if we have one
+            if (isCarryingGatherer)
+            {
+                DropGatherer();
+            }
             
             // Drop the stolen bit if we have one, otherwise drop a random bit
             if (attachedBitData != null)
@@ -496,9 +583,332 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
         }
     }
 
+    private void StartMovingToDeposit()
+    {
+        if (depositTarget != null)
+        {
+            isMovingToDeposit = true;
+            Debug.Log($"CrawlingEntity {gameObject.name} starting to move to deposit");
+        }
+    }
+
     private void Update()
     {
-        // Update attached bit drop position
+        if (isFleeing)
+        {
+            HandleFleeing();
+        }
+        else if (isMovingToDeposit)
+        {
+            HandleMovingToDeposit();
+        }
+        else if (chosenMechanic == StealMechanic.FollowGatherer)
+        {
+            // Always try to handle gatherer following for this mechanic, regardless of current state
+            HandleGathererFollowing();
+        }
+        else
+        {
+            // Handle normal behavior (player following for StealFromPlayer mechanic)
+            HandleNormalBehavior();
+        }
+        
+        // Update attached bit drop bobbing
         UpdateAttachedBitDropPosition();
+    }
+
+    private void HandleMovingToDeposit()
+    {
+        if (depositTarget == null) return;
+        
+        Vector3 directionToDeposit = (depositTarget.position - transform.position).normalized;
+        float distanceToDeposit = Vector3.Distance(transform.position, depositTarget.position);
+        
+        // Check if we've reached the deposit
+        if (distanceToDeposit < 2.0f)
+        {
+            // Steal from deposit and start fleeing
+            Debug.Log($"CrawlingEntity {gameObject.name} reached deposit, stealing and fleeing");
+            StealFromDeposit();
+            StartFleeing();
+            return;
+        }
+        
+        // Move towards deposit
+        MoveTowardsTarget(depositTarget.position, moveForce);
+    }
+    
+    private void HandleGathererFollowing()
+    {
+        // Periodic search for gatherers (especially useful for gatherers spawned later)
+        bool shouldSearchForGatherer = gathererTarget == null || 
+                                       (Time.time - lastGathererSearchTime) > gathererSearchInterval;
+        
+        if (shouldSearchForGatherer)
+        {
+            lastGathererSearchTime = Time.time;
+            
+            // Try to find a gatherer
+            GathererEntity gatherer = FindObjectOfType<GathererEntity>();
+            if (gatherer != null)
+            {
+                if (gathererTarget == null)
+                {
+                    gathererTarget = gatherer.transform;
+                    isFollowingGatherer = true;
+                    Debug.Log($"CrawlingEntity {gameObject.name} found new gatherer: {gatherer.name} at {gatherer.transform.position}");
+                }
+                else if (gathererTarget != gatherer.transform)
+                {
+                    // Found a different gatherer, switch to it
+                    gathererTarget = gatherer.transform;
+                    Debug.Log($"CrawlingEntity {gameObject.name} switched to gatherer: {gatherer.name}");
+                }
+            }
+            else
+            {
+                if (gathererTarget != null)
+                {
+                    Debug.LogWarning($"CrawlingEntity {gameObject.name} lost gatherer target, will keep searching...");
+                    gathererTarget = null;
+                    isFollowingGatherer = false;
+                }
+            }
+        }
+        
+        // If we have a target, follow it (unless we're already carrying one)
+        if (gathererTarget != null && !isCarryingGatherer)
+        {
+            float distanceToGatherer = Vector3.Distance(transform.position, gathererTarget.position);
+            
+            // Check if close enough to take the gatherer
+            if (distanceToGatherer <= gathererTakeDistance)
+            {
+                TakeGatherer(gathererTarget.gameObject);
+            }
+            else if (distanceToGatherer > minFollowDistance)
+            {
+                // Move towards gatherer
+                MoveTowardsTarget(gathererTarget.position, moveForce);
+                
+                // Visual feedback
+                if (!isFollowing)
+                {
+                    isFollowing = true;
+                    Debug.Log($"CrawlingEntity {gameObject.name} started following gatherer at distance {distanceToGatherer:F1}");
+                }
+            }
+            else
+            {
+                // Close to gatherer but not close enough to take, stop moving
+                StopMovement();
+            }
+        }
+        else if (isCarryingGatherer)
+        {
+            // We're carrying a gatherer, just update its position and stop following
+            UpdateCarriedGathererPosition();
+            StopMovement();
+            isFollowing = false;
+        }
+        else
+        {
+            // No gatherer found, stop movement and wait for next search
+            StopMovement();
+            isFollowing = false;
+        }
+    }
+    
+    private void HandleNormalBehavior()
+    {
+        if (playerTarget == null) return;
+        
+        float distanceToPlayer = Vector3.Distance(transform.position, playerTarget.position);
+        
+        // Check if player is in detection range
+        if (distanceToPlayer <= detectionRange && !hasCollidedWithPlayer)
+        {
+            if (!isFollowing)
+            {
+                StartCoroutine(StartFollowing());
+            }
+            
+            if (isFollowing)
+            {
+                // Move towards player
+                MoveTowardsTarget(playerTarget.position, moveForce);
+            }
+        }
+        else
+        {
+            // Player out of range, stop following
+            isFollowing = false;
+            StopMovement();
+        }
+    }
+
+    private void StealFromDeposit()
+    {
+        if (attachedBitDrop != null) return; // Already carrying a bit
+        
+        // Try to steal a core bit from the deposit
+        DepositInteraction deposit = depositTarget?.GetComponent<DepositInteraction>();
+        if (deposit != null && deposit.RemoveCoreBit())
+        {
+            // Create a core bit to carry
+            Bit coreBit = new Bit
+            {
+                bitType = BitType.CoreBit,
+                rarity = Rarity.Common
+            };
+            
+            CreateAttachedBitDropWithBit(coreBit);
+            Debug.Log($"CrawlingEntity {gameObject.name} stole a core bit from deposit!");
+        }
+        else
+        {
+            Debug.Log($"CrawlingEntity {gameObject.name} couldn't steal from deposit - no core bits available");
+        }
+    }
+    
+    private void MoveTowardsTarget(Vector3 targetPosition, float force)
+    {
+        Vector3 direction = (targetPosition - transform.position).normalized;
+        
+        // Apply movement force
+        rb.AddForce(new Vector2(direction.x * force, 0f), ForceMode2D.Force);
+        
+        // Update last move direction for sprite flipping
+        if (Mathf.Abs(rb.linearVelocity.x) > 0.1f)
+        {
+            lastMoveDirection = Mathf.Sign(rb.linearVelocity.x);
+        }
+        
+        // Flip sprite to face movement direction
+        FlipSpriteToFaceDirection();
+        
+        // Limit speed
+        if (Mathf.Abs(rb.linearVelocity.x) > maxSpeed)
+        {
+            rb.linearVelocity = new Vector2(Mathf.Sign(rb.linearVelocity.x) * maxSpeed, rb.linearVelocity.y);
+        }
+    }
+
+    private void StartFleeing()
+    {
+        // Choose random flee target: either x = -40 or x = 40
+        float fleeX = Random.value > 0.5f ? -40f : 40f;
+        fleeTarget = new Vector3(fleeX, groundY, transform.position.z);
+        
+        // Start fleeing
+        isFleeing = true;
+        isMovingToDeposit = false; // Stop moving to deposit
+        accelerationTimer = 0f;
+        
+        Debug.Log($"CrawlingEntity {gameObject.name} fleeing to x = {fleeX}");
+    }
+    
+    private IEnumerator StartFollowing()
+    {
+        yield return new WaitForSeconds(followDelay);
+        isFollowing = true;
+        Debug.Log($"CrawlingEntity {gameObject.name} started following player");
+    }
+    
+    private void StopMovement()
+    {
+        // Gradually slow down the entity
+        if (rb.linearVelocity.magnitude > 0.1f)
+        {
+            rb.linearVelocity = Vector2.Lerp(rb.linearVelocity, Vector2.zero, Time.deltaTime * 5f);
+        }
+        else
+        {
+            rb.linearVelocity = Vector2.zero;
+        }
+    }
+    
+    private void TakeGatherer(GameObject gatherer)
+    {
+        if (gatherer == null || isCarryingGatherer) return;
+        
+        Debug.Log($"CrawlingEntity {gameObject.name} is taking gatherer: {gatherer.name}");
+        
+        // Store reference to the gathered object
+        carriedGatherer = gatherer;
+        isCarryingGatherer = true;
+        
+        // Disable the gatherer's behavior
+        GathererEntity gathererEntity = gatherer.GetComponent<GathererEntity>();
+        if (gathererEntity != null)
+        {
+            gathererEntity.enabled = false; // Disable the gatherer's AI
+        }
+        
+        // Disable gatherer's physics
+        Rigidbody2D gathererRb = gatherer.GetComponent<Rigidbody2D>();
+        if (gathererRb != null)
+        {
+            gathererRb.simulated = false; // Disable physics simulation
+        }
+        
+        // Set gatherer as child of crawling entity (so it moves with us)
+        gatherer.transform.SetParent(transform);
+        
+        // Position the gatherer above the crawling entity
+        UpdateCarriedGathererPosition();
+        
+        // Clear the target since we've taken it
+        gathererTarget = null;
+        isFollowingGatherer = false;
+        
+        // Start fleeing with the captured gatherer (like the other stealing mechanics)
+        StartFleeing();
+        
+        Debug.Log($"CrawlingEntity {gameObject.name} successfully took gatherer {gatherer.name} and is now fleeing!");
+    }
+    
+    private void UpdateCarriedGathererPosition()
+    {
+        if (carriedGatherer != null)
+        {
+            // Set the carried gatherer's position relative to the crawling entity
+            carriedGatherer.transform.localPosition = gathererCarryOffset;
+        }
+    }
+    
+    private void DropGatherer()
+    {
+        if (!isCarryingGatherer || carriedGatherer == null) return;
+        
+        Debug.Log($"CrawlingEntity {gameObject.name} is dropping gatherer: {carriedGatherer.name}");
+        
+        // Remove from parent
+        carriedGatherer.transform.SetParent(null);
+        
+        // Position the gatherer at ground level near the crawling entity
+        Vector3 dropPosition = transform.position + Vector3.right * 2f; // Drop 2 units to the right
+        dropPosition.y = groundY; // Set to ground level
+        carriedGatherer.transform.position = dropPosition;
+        
+        // Re-enable gatherer's physics
+        Rigidbody2D gathererRb = carriedGatherer.GetComponent<Rigidbody2D>();
+        if (gathererRb != null)
+        {
+            gathererRb.simulated = true; // Re-enable physics simulation
+        }
+        
+        // Re-enable the gatherer's behavior
+        GathererEntity gathererEntity = carriedGatherer.GetComponent<GathererEntity>();
+        if (gathererEntity != null)
+        {
+            gathererEntity.enabled = true; // Re-enable the gatherer's AI
+        }
+        
+        // Clear carrying state
+        carriedGatherer = null;
+        isCarryingGatherer = false;
+        
+        Debug.Log($"CrawlingEntity {gameObject.name} dropped gatherer successfully!");
     }
 } 

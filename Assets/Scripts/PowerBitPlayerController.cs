@@ -115,6 +115,12 @@ public class PowerBitPlayerController : MonoBehaviour
 
     private void Update()
     {
+        // Don't process input if game is paused
+        if (PauseManager.Instance != null && PauseManager.Instance.IsPaused)
+        {
+            return;
+        }
+        
         float moveInput = Input.GetAxisRaw("Horizontal");
         bool isRolling = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
         

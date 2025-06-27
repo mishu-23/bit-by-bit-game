@@ -33,11 +33,23 @@ public class SmithInteraction : MonoBehaviour
 
     private void Update()
     {
+        // Don't process input if game is paused (unless it's the pause menu itself)
+        if (PauseManager.Instance != null && PauseManager.Instance.IsPaused && !IsSmithMenuOpen())
+        {
+            return;
+        }
+
         if (playerInRange && Input.GetKeyDown(KeyCode.E))
         {
             if (smithCanvas != null)
             {
                 smithCanvas.SetActive(true);
+                
+                // Pause the game when entering smith builder
+                if (PauseManager.Instance != null)
+                {
+                    PauseManager.Instance.PauseGame(pauseType: PauseManager.PauseType.SmithBuilder);
+                }
                 
                 // Load current build into the Smith UI
                 if (smithBuildManager != null)
@@ -49,7 +61,6 @@ public class SmithInteraction : MonoBehaviour
                     Debug.LogWarning("SmithBuildManager not assigned! Cannot load current build.");
                 }
             }
-            // Optionally: Time.timeScale = 0; // Pause game
         }
 
         if (smithCanvas != null && smithCanvas.activeSelf && Input.GetKeyDown(KeyCode.Escape))
@@ -65,8 +76,18 @@ public class SmithInteraction : MonoBehaviour
                 smithCanvas.SetActive(false);
                 Debug.LogWarning("SmithBuildManager not assigned! Changes may not be reverted properly.");
             }
-            // Optionally: Time.timeScale = 1; // Resume game
+            
+            // Resume the game when exiting smith builder
+            if (PauseManager.Instance != null)
+            {
+                PauseManager.Instance.ResumeGame();
+            }
         }
+    }
+
+    private bool IsSmithMenuOpen()
+    {
+        return smithCanvas != null && smithCanvas.activeSelf;
     }
 
     private void Start()

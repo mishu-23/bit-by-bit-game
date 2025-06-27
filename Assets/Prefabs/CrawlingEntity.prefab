@@ -175,11 +175,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7eaf4b02b7871cb4daab0da9825c3b80, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  enableDebugLogging: 0
   playerTarget: {fileID: 0}
   moveForce: 8
   maxSpeed: 4
   groundY: 0.5
-  detectionRange: 10
+  detectionRange: 30
   minFollowDistance: 1
   accelerationMultiplier: 2
   initialBoostForce: 12
@@ -191,3 +192,6 @@ MonoBehaviour:
   fleeDistance: 8
   fleeSpeed: 6
   playerOffset: -1
+  bitDropOffset: {x: 0, y: 3, z: 0}
+  bitDropBobAmount: 0.2
+  bitDropBobSpeed: 4

@@ -10,8 +10,8 @@ public class BitDrop : MonoBehaviour
     public float collectionSpeed = 5f;
     public LayerMask groundLayer = 1; // Default layer
     
-    [Header("Q Prompt")]
-    public GameObject qIcon; // Assign the Q_Icon child here
+    [Header("F Prompt")]
+    public GameObject fIcon; // Assign the F_Icon child here
     
     private Rigidbody2D rb;
     private bool isGrounded = false;
@@ -36,38 +36,19 @@ public class BitDrop : MonoBehaviour
             spriteRenderer.sprite = bitData.GetSprite();
         }
         
-        // Set up Q icon
-        SetupQIcon();
+        // Set up F icon
+        SetupFIcon();
     }
     
-    private void SetupQIcon()
+    private void SetupFIcon()
     {
-        if (qIcon != null)
+        if (fIcon != null)
         {
-            // Compensate for parent scale to keep Q_Icon consistent size
-            CompensateParentScale();
-            qIcon.SetActive(false); // Hide by default
+            fIcon.SetActive(false); // Hide by default
         }
     }
     
-    private void CompensateParentScale()
-    {
-        if (qIcon != null)
-        {
-            Vector3 parentScale = transform.localScale;
-            Vector3 compensationScale = new Vector3(
-                parentScale.x != 0 ? 1f / parentScale.x : 1f,
-                parentScale.y != 0 ? 1f / parentScale.y : 1f,
-                parentScale.z != 0 ? 1f / parentScale.z : 1f
-            );
-            qIcon.transform.localScale = compensationScale;
-            
-            // Set Q_Icon to always be at y = 8 in world space
-            Vector3 worldPosition = qIcon.transform.position;
-            worldPosition.y = 8f;
-            qIcon.transform.position = worldPosition;
-        }
-    }
+
     
     private void Start()
     {
@@ -87,12 +68,13 @@ public class BitDrop : MonoBehaviour
         }
         else
         {
-            // Check distance to player for Q prompt
+            // Check distance to player for F prompt
             CheckPlayerDistance();
         }
         
-        // Handle Q key press for collection
-        if (playerInRange && Input.GetKeyDown(KeyCode.Q))
+        // Handle F key press for collection (but not when paused)
+        if (playerInRange && Input.GetKeyDown(KeyCode.F) && 
+            (PauseManager.Instance == null || !PauseManager.Instance.IsPaused))
         {
             StartCollection();
         }
@@ -121,23 +103,23 @@ public class BitDrop : MonoBehaviour
             float distance = Vector3.Distance(transform.position, playerTransform.position);
             if (distance <= collectionRange)
             {
-                // Show Q prompt when player is in range
+                // Show F prompt when player is in range
                 if (!playerInRange)
                 {
                     playerInRange = true;
-                    if (qIcon != null)
-                        qIcon.SetActive(true);
+                    if (fIcon != null)
+                        fIcon.SetActive(true);
                     Debug.Log($"Player entered {bitData.bitName} collection range");
                 }
             }
             else
             {
-                // Hide Q prompt when player is out of range
+                // Hide F prompt when player is out of range
                 if (playerInRange)
                 {
                     playerInRange = false;
-                    if (qIcon != null)
-                        qIcon.SetActive(false);
+                    if (fIcon != null)
+                        fIcon.SetActive(false);
                     Debug.Log($"Player left {bitData.bitName} collection range");
                 }
             }
@@ -148,8 +130,8 @@ public class BitDrop : MonoBehaviour
     {
         isBeingCollected = true;
         playerInRange = false;
-        if (qIcon != null)
-            qIcon.SetActive(false);
+        if (fIcon != null)
+            fIcon.SetActive(false);
         rb.simulated = false; // Disable physics during collection
     }
     

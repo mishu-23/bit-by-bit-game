@@ -25,20 +25,34 @@ public class SmithButtonHandler : MonoBehaviour
 
     void OnCloseButtonClick()
     {
+        // Don't process if paused by something other than smith builder
+        if (PauseManager.Instance != null && PauseManager.Instance.IsPaused && 
+            PauseManager.Instance.CurrentPauseType != PauseManager.PauseType.SmithBuilder)
+        {
+            return;
+        }
+
         Debug.Log("Close button clicked - Closing Smith menu");
         if (buildManager != null)
         {
-            buildManager.CloseSmithMenu();
+            buildManager.CloseSmithMenu(); // This will handle the pause system
         }
     }
 
     void OnBuildButtonClick()
     {
+        // Don't process if paused by something other than smith builder
+        if (PauseManager.Instance != null && PauseManager.Instance.IsPaused && 
+            PauseManager.Instance.CurrentPauseType != PauseManager.PauseType.SmithBuilder)
+        {
+            return;
+        }
+
         Debug.Log("Build button clicked - Saving and applying build");
         if (buildManager != null)
         {
             buildManager.SaveBuild();
-            buildManager.CloseSmithMenu();
+            buildManager.CloseSmithMenu(); // This will handle the pause system
         }
     }
 

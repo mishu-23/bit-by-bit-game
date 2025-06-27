@@ -113,7 +113,10 @@ public class BitCollectionManager : MonoBehaviour
         }
         
         // Create new build if file doesn't exist or is corrupted
-        return new SmithGridStateData(2); // Default 2x2 grid
+        // Check current grid size from SmithBuildManager
+        SmithBuildManager smithManager = FindObjectOfType<SmithBuildManager>();
+        int currentGridSize = smithManager != null ? smithManager.gridSize : 2; // Default to 2x2 if no manager found
+        return new SmithGridStateData(currentGridSize);
     }
     
     private Vector2Int FindRandomEmptyPosition(SmithGridStateData build)

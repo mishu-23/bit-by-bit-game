@@ -110,6 +110,12 @@ public class PlayerController : MonoBehaviour
 
     private void Update()
     {
+        // Don't process input if game is paused
+        if (PauseManager.Instance != null && PauseManager.Instance.IsPaused)
+        {
+            return;
+        }
+        
         // Check if player is grounded
         bool isGrounded = CheckGrounded();
         

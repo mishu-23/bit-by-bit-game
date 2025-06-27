@@ -3,6 +3,9 @@ using System.Collections;
 
 public class CrawlingEntity : MonoBehaviour, IDamageable
 {
+    [Header("Debug")]
+    [SerializeField] private bool enableDebugLogging = true; // Toggle to control debug messages
+    
     [Header("Target")]
     public Transform playerTarget;
 
@@ -73,6 +76,31 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
     private Vector3 gathererCarryOffset = new Vector3(0f, 1.2f, 0f); // Offset for carried gatherer
     private float gathererTakeDistance = 1.5f; // Distance at which to take the gatherer
 
+    // Helper method for conditional debug logging
+    private void DebugLog(string message)
+    {
+        if (enableDebugLogging)
+        {
+            Debug.Log(message);
+        }
+    }
+    
+    private void DebugLogWarning(string message)
+    {
+        if (enableDebugLogging)
+        {
+            Debug.LogWarning(message);
+        }
+    }
+    
+    private void DebugLogError(string message)
+    {
+        if (enableDebugLogging)
+        {
+            Debug.LogError(message);
+        }
+    }
+
     private void Awake()
     {
         gameObject.layer = 6; // Entity layer
@@ -116,7 +144,7 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
             chosenMechanic = StealMechanic.FollowGatherer;
         }
         
-        Debug.Log($"CrawlingEntity {gameObject.name} chose mechanic: {chosenMechanic}");
+        DebugLog($"CrawlingEntity {gameObject.name} chose mechanic: {chosenMechanic}");
         
         // Find player if not assigned
         if (playerTarget == null)
@@ -125,11 +153,11 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
             if (player != null)
             {
                 playerTarget = player.transform;
-                Debug.Log($"CrawlingEntity {gameObject.name} found player: {player.name}");
+                DebugLog($"CrawlingEntity {gameObject.name} found player: {player.name}");
             }
             else
             {
-                Debug.LogError($"CrawlingEntity {gameObject.name} couldn't find player with tag 'Player'!");
+                DebugLogError($"CrawlingEntity {gameObject.name} couldn't find player with tag 'Player'!");
             }
         }
         
@@ -140,13 +168,13 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
             if (deposit != null)
             {
                 depositTarget = deposit.transform;
-                Debug.Log($"CrawlingEntity {gameObject.name} found deposit at: {depositTarget.position}");
+                DebugLog($"CrawlingEntity {gameObject.name} found deposit at: {depositTarget.position}");
                 // Start moving to deposit immediately
                 StartMovingToDeposit();
             }
             else
             {
-                Debug.LogWarning($"CrawlingEntity {gameObject.name} couldn't find deposit! Falling back to player stealing.");
+                DebugLogWarning($"CrawlingEntity {gameObject.name} couldn't find deposit! Falling back to player stealing.");
                 chosenMechanic = StealMechanic.StealFromPlayer;
             }
         }
@@ -157,11 +185,11 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
         {
             gathererTarget = gatherer.transform;
             isFollowingGatherer = true;
-            Debug.Log($"CrawlingEntity {gameObject.name} found gatherer: {gatherer.name} at position {gatherer.transform.position}");
+            DebugLog($"CrawlingEntity {gameObject.name} found gatherer: {gatherer.name} at position {gatherer.transform.position}");
         }
         else
         {
-            Debug.LogError($"CrawlingEntity {gameObject.name} couldn't find any GathererEntity in the scene!");
+            DebugLogError($"CrawlingEntity {gameObject.name} couldn't find any GathererEntity in the scene!");
         }
         
         // Don't create attached bit drop initially - will steal one when fleeing
@@ -189,7 +217,7 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
                 originalBitDropOffset = bitDropOffset;
                 UpdateAttachedBitDropPosition();
                 
-                Debug.Log($"CrawlingEntity {gameObject.name} created attached bit drop: {attachedBitData.bitName}");
+                DebugLog($"CrawlingEntity {gameObject.name} created attached bit drop: {attachedBitData.bitName}");
             }
         }
     }
@@ -235,7 +263,7 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
         {
             if (!isFollowing)
             {
-                Debug.Log($"CrawlingEntity {gameObject.name} detected player at distance {distanceToPlayer:F1}, starting to follow...");
+                                        DebugLog($"CrawlingEntity {gameObject.name} detected player at distance {distanceToPlayer:F1}, starting to follow...");
                 isFollowing = true;
                 accelerationTimer = 0f; // Reset acceleration timer when starting to follow
             }
@@ -283,7 +311,7 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
             }
 
             wasMoving = true;
-            Debug.Log($"CrawlingEntity {gameObject.name} following player with offset, distance to target: {distanceToTarget:F1}");
+                                DebugLog($"CrawlingEntity {gameObject.name} following player with offset, distance to target: {distanceToTarget:F1}");
         }
         else if (distanceToPlayer <= minFollowDistance + playerOffset)
         {
@@ -292,14 +320,14 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
             isFollowing = false;
             wasMoving = false;
             accelerationTimer = 0f;
-            Debug.Log($"CrawlingEntity {gameObject.name} reached player with offset, stopping at distance {distanceToPlayer:F1}");
+                            DebugLog($"CrawlingEntity {gameObject.name} reached player with offset, stopping at distance {distanceToPlayer:F1}");
         }
         else if (distanceToPlayer > detectionRange)
         {
             // Player too far, stop following
             if (isFollowing)
             {
-                Debug.Log($"CrawlingEntity {gameObject.name} lost player, stopping (distance: {distanceToPlayer:F1})");
+                DebugLog($"CrawlingEntity {gameObject.name} lost player, stopping (distance: {distanceToPlayer:F1})");
                 isFollowing = false;
             }
             
@@ -369,7 +397,7 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
         // Don't steal if we already have a bit attached
         if (attachedBitData != null)
         {
-            Debug.Log($"CrawlingEntity {gameObject.name} already has a bit attached ({attachedBitData.bitName}), won't steal another one!");
+            DebugLog($"CrawlingEntity {gameObject.name} already has a bit attached ({attachedBitData.bitName}), won't steal another one!");
             return;
         }
         
@@ -385,16 +413,16 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
                 {
                     // Create the attached bit drop with the stolen bit
                     CreateAttachedBitDropWithBit(stolenBit);
-                    Debug.Log($"CrawlingEntity {gameObject.name} stole {stolenBit.bitName} from player's build!");
+                    DebugLog($"CrawlingEntity {gameObject.name} stole {stolenBit.bitName} from player's build!");
                 }
                 else
                 {
-                    Debug.Log($"CrawlingEntity {gameObject.name} tried to steal a bit but player's build is empty!");
+                    DebugLog($"CrawlingEntity {gameObject.name} tried to steal a bit but player's build is empty!");
                 }
             }
             else
             {
-                Debug.LogWarning($"CrawlingEntity {gameObject.name} couldn't find PowerBitPlayerController on player!");
+                DebugLogWarning($"CrawlingEntity {gameObject.name} couldn't find PowerBitPlayerController on player!");
             }
         }
     }
@@ -418,7 +446,7 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
             originalBitDropOffset = bitDropOffset;
             UpdateAttachedBitDropPosition();
             
-            Debug.Log($"CrawlingEntity {gameObject.name} created attached bit drop: {attachedBitData.bitName}");
+            DebugLog($"CrawlingEntity {gameObject.name} created attached bit drop: {attachedBitData.bitName}");
         }
     }
 
@@ -429,7 +457,7 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
         if (collision.gameObject.CompareTag("Player") || collision.gameObject.layer == 3)
         {
             // This shouldn't happen anymore since we're using a trigger for player detection
-            Debug.Log($"CrawlingEntity {gameObject.name} unexpected collision with player!");
+            DebugLog($"CrawlingEntity {gameObject.name} unexpected collision with player!");
         }
     }
 
@@ -502,7 +530,7 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
         rb.linearVelocity = Vector2.zero;
         accelerationTimer = 0f;
         wasMoving = false;
-        Debug.Log($"CrawlingEntity {gameObject.name} has been reset");
+        DebugLog($"CrawlingEntity {gameObject.name} has been reset");
     }
 
     // Public method to get current state
@@ -520,11 +548,11 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
     public void TakeDamage(int damage)
     {
         currentHealth -= damage;
-        Debug.Log($"CrawlingEntity {gameObject.name} took {damage} damage! Health: {currentHealth}/{maxHealth}");
+        DebugLog($"CrawlingEntity {gameObject.name} took {damage} damage! Health: {currentHealth}/{maxHealth}");
         
         if (currentHealth <= 0)
         {
-            Debug.Log($"CrawlingEntity {gameObject.name} destroyed!");
+            DebugLog($"CrawlingEntity {gameObject.name} destroyed!");
             
             // Drop the carried gatherer if we have one
             if (isCarryingGatherer)
@@ -555,7 +583,7 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
             // Create a real bit drop at entity's position
             Vector3 dropPosition = transform.position + Vector3.up * 0.5f; // Slightly above the entity
             BitDrop.CreateBitDrop(attachedBitData, dropPosition);
-            Debug.Log($"CrawlingEntity {gameObject.name} dropped stolen bit: {attachedBitData.bitName} (Type: {attachedBitData.bitType}, Rarity: {attachedBitData.rarity})!");
+            DebugLog($"CrawlingEntity {gameObject.name} dropped stolen bit: {attachedBitData.bitName} (Type: {attachedBitData.bitType}, Rarity: {attachedBitData.rarity})!");
         }
     }
     
@@ -570,16 +598,16 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
                 // Create bit drop at entity's position
                 Vector3 dropPosition = transform.position + Vector3.up * 0.5f; // Slightly above the entity
                 BitDrop.CreateBitDrop(randomBit, dropPosition);
-                Debug.Log($"CrawlingEntity {gameObject.name} dropped {randomBit.bitName} (Type: {randomBit.bitType}, Rarity: {randomBit.rarity})!");
+                DebugLog($"CrawlingEntity {gameObject.name} dropped {randomBit.bitName} (Type: {randomBit.bitType}, Rarity: {randomBit.rarity})!");
             }
             else
             {
-                Debug.LogWarning("BitManager returned null bit for drop!");
+                DebugLogWarning("BitManager returned null bit for drop!");
             }
         }
         else
         {
-            Debug.LogWarning("BitManager not found! Cannot drop bit.");
+            DebugLogWarning("BitManager not found! Cannot drop bit!");
         }
     }
 
@@ -588,7 +616,7 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
         if (depositTarget != null)
         {
             isMovingToDeposit = true;
-            Debug.Log($"CrawlingEntity {gameObject.name} starting to move to deposit");
+            DebugLog($"CrawlingEntity {gameObject.name} starting to move to deposit");
         }
     }
 
@@ -628,7 +656,7 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
         if (distanceToDeposit < 2.0f)
         {
             // Steal from deposit and start fleeing
-            Debug.Log($"CrawlingEntity {gameObject.name} reached deposit, stealing and fleeing");
+            DebugLog($"CrawlingEntity {gameObject.name} reached deposit, stealing and fleeing");
             StealFromDeposit();
             StartFleeing();
             return;
@@ -656,20 +684,20 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
                 {
                     gathererTarget = gatherer.transform;
                     isFollowingGatherer = true;
-                    Debug.Log($"CrawlingEntity {gameObject.name} found new gatherer: {gatherer.name} at {gatherer.transform.position}");
+                    DebugLog($"CrawlingEntity {gameObject.name} found new gatherer: {gatherer.name} at {gatherer.transform.position}");
                 }
                 else if (gathererTarget != gatherer.transform)
                 {
                     // Found a different gatherer, switch to it
                     gathererTarget = gatherer.transform;
-                    Debug.Log($"CrawlingEntity {gameObject.name} switched to gatherer: {gatherer.name}");
+                    DebugLog($"CrawlingEntity {gameObject.name} switched to gatherer: {gatherer.name}");
                 }
             }
             else
             {
                 if (gathererTarget != null)
                 {
-                    Debug.LogWarning($"CrawlingEntity {gameObject.name} lost gatherer target, will keep searching...");
+                    DebugLogWarning($"CrawlingEntity {gameObject.name} lost gatherer target, will keep searching...");
                     gathererTarget = null;
                     isFollowingGatherer = false;
                 }
@@ -695,7 +723,7 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
                 if (!isFollowing)
                 {
                     isFollowing = true;
-                    Debug.Log($"CrawlingEntity {gameObject.name} started following gatherer at distance {distanceToGatherer:F1}");
+                    DebugLog($"CrawlingEntity {gameObject.name} started following gatherer at distance {distanceToGatherer:F1}");
                 }
             }
             else
@@ -763,11 +791,11 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
             };
             
             CreateAttachedBitDropWithBit(coreBit);
-            Debug.Log($"CrawlingEntity {gameObject.name} stole a core bit from deposit!");
+            DebugLog($"CrawlingEntity {gameObject.name} stole a core bit from deposit!");
         }
         else
         {
-            Debug.Log($"CrawlingEntity {gameObject.name} couldn't steal from deposit - no core bits available");
+            DebugLog($"CrawlingEntity {gameObject.name} couldn't steal from deposit - no core bits available");
         }
     }
     
@@ -805,14 +833,14 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
         isMovingToDeposit = false; // Stop moving to deposit
         accelerationTimer = 0f;
         
-        Debug.Log($"CrawlingEntity {gameObject.name} fleeing to x = {fleeX}");
+        DebugLog($"CrawlingEntity {gameObject.name} fleeing to x = {fleeX}");
     }
     
     private IEnumerator StartFollowing()
     {
         yield return new WaitForSeconds(followDelay);
         isFollowing = true;
-        Debug.Log($"CrawlingEntity {gameObject.name} started following player");
+        DebugLog($"CrawlingEntity {gameObject.name} started following player");
     }
     
     private void StopMovement()
@@ -832,7 +860,7 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
     {
         if (gatherer == null || isCarryingGatherer) return;
         
-        Debug.Log($"CrawlingEntity {gameObject.name} is taking gatherer: {gatherer.name}");
+        DebugLog($"CrawlingEntity {gameObject.name} is taking gatherer: {gatherer.name}");
         
         // Store reference to the gathered object
         carriedGatherer = gatherer;
@@ -865,7 +893,7 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
         // Start fleeing with the captured gatherer (like the other stealing mechanics)
         StartFleeing();
         
-        Debug.Log($"CrawlingEntity {gameObject.name} successfully took gatherer {gatherer.name} and is now fleeing!");
+        DebugLog($"CrawlingEntity {gameObject.name} successfully took gatherer {gatherer.name} and is now fleeing!");
     }
     
     private void UpdateCarriedGathererPosition()
@@ -881,7 +909,7 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
     {
         if (!isCarryingGatherer || carriedGatherer == null) return;
         
-        Debug.Log($"CrawlingEntity {gameObject.name} is dropping gatherer: {carriedGatherer.name}");
+        DebugLog($"CrawlingEntity {gameObject.name} is dropping gatherer: {carriedGatherer.name}");
         
         // Remove from parent
         carriedGatherer.transform.SetParent(null);
@@ -909,6 +937,6 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
         carriedGatherer = null;
         isCarryingGatherer = false;
         
-        Debug.Log($"CrawlingEntity {gameObject.name} dropped gatherer successfully!");
+        DebugLog($"CrawlingEntity {gameObject.name} dropped gatherer successfully!");
     }
 } 

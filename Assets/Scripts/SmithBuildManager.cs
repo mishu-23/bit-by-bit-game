@@ -2,6 +2,7 @@ using UnityEngine;
 using System.Collections.Generic;
 using System;
 using System.Linq;
+using TMPro;
 
 [Serializable]
 public class SmithGridStateData
@@ -52,11 +53,18 @@ public class SmithBuildManager : MonoBehaviour
 
     [Header("Character Integration")]
     public PowerBitPlayerController playerController; // Assign in inspector
+    
+    [Header("Grid Prefabs")]
+    public GameObject buildGridCellPrefab; // Assign the BuildGridCell prefab for creating new cells
+
+    [Header("UI References")]
+    public TextMeshProUGUI gridSizeIndicator; // Assign a text component to show current grid size
 
     private BuildGridCellUI[,] gridCells;
     private SmithGridStateData originalBuildState; // Store the original state when opening menu
     private List<InventoryBitData> originalInventoryState; // Store original inventory state
     private List<InventoryBitData> addedBitsDuringSession; // Track bits added during this session
+    private UnityEngine.UI.GridLayoutGroup gridLayoutGroup;
 
     // Class to track inventory bit data
     [System.Serializable]
@@ -128,35 +136,267 @@ public class SmithBuildManager : MonoBehaviour
 
     void Start()
     {
+        // Debug the buildGridPanel assignment
+        Debug.Log($"SmithBuildManager Start: buildGridPanel = {(buildGridPanel != null ? buildGridPanel.name : "NULL")}");
+        
+        // Get the GridLayoutGroup component
+        if (buildGridPanel != null)
+        {
+            gridLayoutGroup = buildGridPanel.GetComponent<UnityEngine.UI.GridLayoutGroup>();
+            if (gridLayoutGroup == null)
+            {
+                Debug.LogError("BuildGridPanel does not have a GridLayoutGroup component!");
+                Debug.LogError($"BuildGridPanel components: {string.Join(", ", buildGridPanel.GetComponents<Component>().Select(c => c.GetType().Name))}");
+            }
+            else
+            {
+                Debug.Log($"GridLayoutGroup found! Current constraintCount: {gridLayoutGroup.constraintCount}");
+            }
+        }
+        else
+        {
+            Debug.LogError("BuildGridPanel is not assigned in SmithBuildManager!");
+        }
+        
         InitializeGridCells();
+        UpdateGridSizeIndicator();
     }
-
-    private void InitializeGridCells()
+    
+    void Update()
+    {
+        // Only process manual input when game is paused and Smith menu is open
+        if (PauseManager.Instance != null && PauseManager.Instance.IsPaused)
+        {
+            GameObject smithCanvas = GameObject.Find("SmithCanvas");
+            if (smithCanvas != null && smithCanvas.activeInHierarchy)
+            {
+                // Only process grid size changes when Smith menu is open
+                if (Input.GetKeyDown(KeyCode.Alpha1))
+                {
+                    ChangeGridSize(2);
+                }
+                else if (Input.GetKeyDown(KeyCode.Alpha2))
+                {
+                    ChangeGridSize(3);
+                }
+                else if (Input.GetKeyDown(KeyCode.Alpha3))
+                {
+                    ChangeGridSize(4);
+                }
+            }
+        }
+    }
+    
+    public void ChangeGridSize(int newSize)
+    {
+        Debug.Log($"ChangeGridSize called with newSize={newSize}, current gridSize={gridSize}");
+        
+        if (newSize != 2 && newSize != 3 && newSize != 4)
+        {
+            Debug.LogWarning($"Invalid grid size: {newSize}. Only 2x2, 3x3, and 4x4 are supported.");
+            return;
+        }
+        
+        if (newSize == gridSize)
+        {
+            Debug.Log($"Grid is already {newSize}x{newSize}");
+            return;
+        }
+        
+        Debug.Log($"Changing grid size from {gridSize}x{gridSize} to {newSize}x{newSize}");
+        
+        // Save current build state
+        Debug.Log("Saving current grid state...");
+        SaveCurrentGridState();
+        
+        // Update grid size
+        Debug.Log($"Updating gridSize from {gridSize} to {newSize}");
+        gridSize = newSize;
+        
+        // Update GridLayoutGroup constraint count
+        if (gridLayoutGroup != null)
+        {
+            Debug.Log($"Updating GridLayoutGroup constraintCount from {gridLayoutGroup.constraintCount} to {newSize}");
+            gridLayoutGroup.constraintCount = newSize;
+            Debug.Log($"GridLayoutGroup constraintCount is now: {gridLayoutGroup.constraintCount}");
+        }
+        else
+        {
+            Debug.LogError("GridLayoutGroup is null! Cannot update constraint count.");
+        }
+        
+        // Recreate the grid with new size
+        Debug.Log("Creating new grid cells...");
+        CreateGridCells();
+        
+        // Try to restore build state to new grid
+        Debug.Log("Restoring grid state...");
+        RestoreGridState();
+        
+        // Update UI indicator
+        Debug.Log("Updating grid size indicator...");
+        UpdateGridSizeIndicator();
+        
+        Debug.Log($"Grid size change completed! gridSize={gridSize}");
+    }
+    
+    // Debug method to test grid size change
+    [ContextMenu("Test Grid Size Change to 3x3")]
+    public void TestGridSizeChange()
+    {
+        Debug.Log("Manual test: Changing grid size to 3x3");
+        ChangeGridSize(3);
+    }
+    
+    private void CreateGridCells()
     {
         if (buildGridPanel == null)
         {
             Debug.LogError("BuildGridPanel not assigned!");
             return;
         }
-
-        gridCells = new BuildGridCellUI[gridSize, gridSize];
-        BuildGridCellUI[] cells = buildGridPanel.GetComponentsInChildren<BuildGridCellUI>();
         
-        if (cells.Length != gridSize * gridSize)
+        if (buildGridCellPrefab == null)
         {
-            Debug.LogError($"Expected {gridSize * gridSize} grid cells, but found {cells.Length}");
+            Debug.LogError("BuildGridCell prefab not assigned!");
             return;
         }
-
-        int index = 0;
-        for (int y = 0; y < gridSize; y++)
+        
+        // Update GridLayoutGroup constraint count first
+        if (gridLayoutGroup != null)
         {
-            for (int x = 0; x < gridSize; x++)
+            Debug.Log($"Updating GridLayoutGroup constraintCount from {gridLayoutGroup.constraintCount} to {gridSize}");
+            gridLayoutGroup.constraintCount = gridSize;
+        }
+        else
+        {
+            Debug.LogError("GridLayoutGroup is null! Cannot update constraint count.");
+        }
+        
+        // Clear existing cells
+        for (int i = buildGridPanel.childCount - 1; i >= 0; i--)
+        {
+            DestroyImmediate(buildGridPanel.GetChild(i).gameObject);
+        }
+        
+        // Create new grid array
+        gridCells = new BuildGridCellUI[gridSize, gridSize];
+        
+        // Create the required number of cells
+        for (int i = 0; i < gridSize * gridSize; i++)
+        {
+            GameObject cellObj = Instantiate(buildGridCellPrefab, buildGridPanel);
+            BuildGridCellUI cellUI = cellObj.GetComponent<BuildGridCellUI>();
+            
+            if (cellUI != null)
             {
-                gridCells[x, y] = cells[index];
-                index++;
+                int x = i % gridSize;
+                int y = i / gridSize;
+                gridCells[x, y] = cellUI;
+                cellObj.name = $"BuildGridCell ({x},{y})";
+            }
+            else
+            {
+                Debug.LogError("BuildGridCell prefab does not have BuildGridCellUI component!");
             }
         }
+        
+        Debug.Log($"Created {gridSize * gridSize} grid cells with GridLayoutGroup constraintCount={gridLayoutGroup?.constraintCount}");
+    }
+    
+    private SmithGridStateData currentGridState;
+    
+    private void SaveCurrentGridState()
+    {
+        if (gridCells == null) return;
+        
+        currentGridState = new SmithGridStateData(gridSize);
+        
+        // Get actual array dimensions to avoid IndexOutOfRangeException
+        int actualWidth = gridCells.GetLength(0);
+        int actualHeight = gridCells.GetLength(1);
+        
+        // Collect all cell data
+        for (int y = 0; y < actualHeight; y++)
+        {
+            for (int x = 0; x < actualWidth; x++)
+            {
+                BuildGridCellUI cell = gridCells[x, y];
+                if (cell != null)
+                {
+                    InventoryBitSlotUI[] bitSlots = cell.GetComponentsInChildren<InventoryBitSlotUI>();
+                    
+                    // Take the first bit slot if any exist
+                    if (bitSlots.Length > 0 && bitSlots[0].bitData != null)
+                    {
+                        SmithCellData cellData = new SmithCellData(x, y, bitSlots[0].bitData);
+                        currentGridState.cells.Add(cellData);
+                    }
+                }
+            }
+        }
+        Debug.Log($"Saved grid state with {currentGridState.cells.Count} cells (actual dimensions: {actualWidth}x{actualHeight})");
+    }
+    
+    private void RestoreGridState()
+    {
+        if (currentGridState == null || gridCells == null) return;
+        
+        // Clear the new grid first
+        ClearGrid();
+        
+        // Restore bits that fit in the new grid size
+        foreach (var cell in currentGridState.cells)
+        {
+            if (cell.x >= 0 && cell.x < gridSize && cell.y >= 0 && cell.y < gridSize)
+            {
+                BuildGridCellUI gridCell = gridCells[cell.x, cell.y];
+                
+                // Create a new InventoryBitSlotUI from prefab
+                if (inventoryBitSlotPrefab != null && gridCell != null)
+                {
+                    GameObject bitSlotObj = Instantiate(inventoryBitSlotPrefab, gridCell.transform);
+                    InventoryBitSlotUI bitSlot = bitSlotObj.GetComponent<InventoryBitSlotUI>();
+                    
+                    if (bitSlot != null)
+                    {
+                        // Create a Bit object from the cell data
+                        Bit bitData = CreateBitFromCellData(cell);
+                        
+                        // Set the bit data and sprite directly
+                        bitSlot.bitData = bitData;
+                        if (bitSlot.iconImage != null)
+                        {
+                            bitSlot.iconImage.sprite = bitData.GetSprite();
+                        }
+                        
+                        // Position the slot in the center of the grid cell
+                        RectTransform slotRect = bitSlot.GetComponent<RectTransform>();
+                        slotRect.anchorMin = new Vector2(0.5f, 0.5f);
+                        slotRect.anchorMax = new Vector2(0.5f, 0.5f);
+                        slotRect.pivot = new Vector2(0.5f, 0.5f);
+                        slotRect.anchoredPosition = Vector2.zero;
+                        
+                        // Tell the grid cell it's occupied
+                        gridCell.SetCurrentBitSlot(bitSlot);
+                    }
+                }
+            }
+        }
+    }
+    
+    private void UpdateGridSizeIndicator()
+    {
+        if (gridSizeIndicator != null)
+        {
+            gridSizeIndicator.text = $"Grid: {gridSize}x{gridSize} (Press 1 for 2x2, 2 for 3x3, 3 for 4x4)";
+        }
+    }
+
+    private void InitializeGridCells()
+    {
+        // Use the new CreateGridCells method for initial setup
+        CreateGridCells();
     }
 
     public void SaveBuild()
@@ -230,12 +470,26 @@ public class SmithBuildManager : MonoBehaviour
             smithCanvas.SetActive(false);
         }
         
-        Debug.Log("Smith menu closed - changes reverted");
+        // Resume the game when closing smith menu
+        if (PauseManager.Instance != null)
+        {
+            PauseManager.Instance.ResumeGame();
+        }
+        
+        Debug.Log("Smith menu closed - changes reverted and game resumed");
     }
     
     public void LoadCurrentBuild()
     {
         Debug.Log("=== LOADING CURRENT BUILD INTO SMITH UI ===");
+        
+        // Ensure the grid is properly sized for the current gridSize
+        if (gridCells == null || gridCells.GetLength(0) != gridSize || gridCells.GetLength(1) != gridSize)
+        {
+            Debug.Log($"Grid size mismatch detected. Current gridSize: {gridSize}, actual grid dimensions: {(gridCells != null ? $"{gridCells.GetLength(0)}x{gridCells.GetLength(1)}" : "null")}");
+            Debug.Log("Recreating grid to match current gridSize...");
+            CreateGridCells();
+        }
         
         // Save the original state before making any changes
         SaveOriginalBuildState();
@@ -279,25 +533,39 @@ public class SmithBuildManager : MonoBehaviour
     // Save the original build state when opening the menu
     private void SaveOriginalBuildState()
     {
+        if (gridCells == null)
+        {
+            Debug.LogWarning("gridCells is null in SaveOriginalBuildState()");
+            originalBuildState = new SmithGridStateData(gridSize);
+            return;
+        }
+        
         originalBuildState = new SmithGridStateData(gridSize);
         
+        // Get actual array dimensions to avoid IndexOutOfRangeException
+        int actualWidth = gridCells.GetLength(0);
+        int actualHeight = gridCells.GetLength(1);
+        
         // Collect current build state
-        for (int y = 0; y < gridSize; y++)
+        for (int y = 0; y < actualHeight; y++)
         {
-            for (int x = 0; x < gridSize; x++)
+            for (int x = 0; x < actualWidth; x++)
             {
                 BuildGridCellUI cell = gridCells[x, y];
-                InventoryBitSlotUI[] bitSlots = cell.GetComponentsInChildren<InventoryBitSlotUI>();
-                
-                if (bitSlots.Length > 0 && bitSlots[0].bitData != null)
+                if (cell != null)
                 {
-                    SmithCellData cellData = new SmithCellData(x, y, bitSlots[0].bitData);
-                    originalBuildState.cells.Add(cellData);
+                    InventoryBitSlotUI[] bitSlots = cell.GetComponentsInChildren<InventoryBitSlotUI>();
+                    
+                    if (bitSlots.Length > 0 && bitSlots[0].bitData != null)
+                    {
+                        SmithCellData cellData = new SmithCellData(x, y, bitSlots[0].bitData);
+                        originalBuildState.cells.Add(cellData);
+                    }
                 }
             }
         }
         
-        Debug.Log($"Saved original build state with {originalBuildState.cells.Count} bits");
+        Debug.Log($"Saved original build state with {originalBuildState.cells.Count} bits (actual dimensions: {actualWidth}x{actualHeight})");
     }
     
     // Save the original inventory state when opening the menu
@@ -429,50 +697,65 @@ public class SmithBuildManager : MonoBehaviour
         // Clear the grid first
         ClearGrid();
         
+        if (gridCells == null)
+        {
+            Debug.LogWarning("gridCells is null in LoadBuildIntoGrid()");
+            return;
+        }
+        
+        int actualWidth = gridCells.GetLength(0);
+        int actualHeight = gridCells.GetLength(1);
+        
         // Load each bit into the grid
         foreach (var cell in gridState.cells)
         {
-            if (cell.x >= 0 && cell.x < gridSize && cell.y >= 0 && cell.y < gridSize)
+            // Check bounds against both gridSize and actual array dimensions
+            if (cell.x >= 0 && cell.x < gridSize && cell.y >= 0 && cell.y < gridSize &&
+                cell.x < actualWidth && cell.y < actualHeight)
             {
                 BuildGridCellUI gridCell = gridCells[cell.x, cell.y];
                 
-                // Create a new InventoryBitSlotUI from prefab
-                if (inventoryBitSlotPrefab != null)
+                if (gridCell != null)
                 {
-                    GameObject bitSlotObj = Instantiate(inventoryBitSlotPrefab, gridCell.transform);
-                    InventoryBitSlotUI bitSlot = bitSlotObj.GetComponent<InventoryBitSlotUI>();
-                    
-                    if (bitSlot != null)
+                    // Create a new InventoryBitSlotUI from prefab
+                    if (inventoryBitSlotPrefab != null)
                     {
-                        // Create a Bit object from the cell data
-                        Bit bitData = CreateBitFromCellData(cell);
+                        GameObject bitSlotObj = Instantiate(inventoryBitSlotPrefab, gridCell.transform);
+                        InventoryBitSlotUI bitSlot = bitSlotObj.GetComponent<InventoryBitSlotUI>();
                         
-                        // Set the bit data and sprite directly
-                        bitSlot.bitData = bitData;
-                        if (bitSlot.iconImage != null)
+                        if (bitSlot != null)
                         {
-                            bitSlot.iconImage.sprite = bitData.GetSprite();
+                            // Create a Bit object from the cell data
+                            Bit bitData = CreateBitFromCellData(cell);
+                            
+                            // Set the bit data and sprite directly
+                            bitSlot.bitData = bitData;
+                            if (bitSlot.iconImage != null)
+                            {
+                                bitSlot.iconImage.sprite = bitData.GetSprite();
+                            }
+                            
+                            // Position the slot in the center of the grid cell
+                            RectTransform slotRect = bitSlot.GetComponent<RectTransform>();
+                            slotRect.anchorMin = new Vector2(0.5f, 0.5f);
+                            slotRect.anchorMax = new Vector2(0.5f, 0.5f);
+                            slotRect.pivot = new Vector2(0.5f, 0.5f);
+                            slotRect.anchoredPosition = Vector2.zero;
+                            
+                            // Tell the grid cell it's occupied
+                            gridCell.SetCurrentBitSlot(bitSlot);
+                            
+                            Debug.Log($"Loaded {cell.bitName} into grid position [{cell.x},{cell.y}]");
                         }
-                        
-                        // Position the slot in the center of the grid cell
-                        RectTransform slotRect = bitSlot.GetComponent<RectTransform>();
-                        slotRect.anchorMin = new Vector2(0.5f, 0.5f);
-                        slotRect.anchorMax = new Vector2(0.5f, 0.5f);
-                        slotRect.pivot = new Vector2(0.5f, 0.5f);
-                        slotRect.anchoredPosition = Vector2.zero;
-                        
-                        // Tell the grid cell it's occupied
-                        gridCell.SetCurrentBitSlot(bitSlot);
-                        
-                        Debug.Log($"Loaded {cell.bitName} into grid position [{cell.x},{cell.y}]");
                     }
-                }
-                else
-                {
-                    Debug.LogError("InventoryBitSlot prefab not assigned!");
+                    else
+                    {
+                        Debug.LogError("InventoryBitSlot prefab not assigned!");
+                    }
                 }
             }
         }
+        Debug.Log($"LoadBuildIntoGrid completed (grid dimensions: {actualWidth}x{actualHeight})");
     }
     
     private Bit CreateBitFromCellData(SmithCellData cell)
@@ -492,23 +775,35 @@ public class SmithBuildManager : MonoBehaviour
     private void ClearGrid()
     {
         // Clear all grid cells by destroying any InventoryBitSlotUI children
-        for (int y = 0; y < gridSize; y++)
+        if (gridCells == null)
         {
-            for (int x = 0; x < gridSize; x++)
+            Debug.LogWarning("gridCells is null in ClearGrid()");
+            return;
+        }
+        
+        int actualWidth = gridCells.GetLength(0);
+        int actualHeight = gridCells.GetLength(1);
+        
+        for (int y = 0; y < actualHeight; y++)
+        {
+            for (int x = 0; x < actualWidth; x++)
             {
                 BuildGridCellUI gridCell = gridCells[x, y];
-                InventoryBitSlotUI[] bitSlots = gridCell.GetComponentsInChildren<InventoryBitSlotUI>();
-                
-                foreach (var bitSlot in bitSlots)
+                if (gridCell != null)
                 {
-                    Destroy(bitSlot.gameObject);
+                    InventoryBitSlotUI[] bitSlots = gridCell.GetComponentsInChildren<InventoryBitSlotUI>();
+                    
+                    foreach (var bitSlot in bitSlots)
+                    {
+                        Destroy(bitSlot.gameObject);
+                    }
+                    
+                    // Clear the grid cell's tracking
+                    gridCell.SetCurrentBitSlot(null);
                 }
-                
-                // Clear the grid cell's tracking
-                gridCell.SetCurrentBitSlot(null);
             }
         }
-        Debug.Log("Grid cleared");
+        Debug.Log($"Grid cleared (actual dimensions: {actualWidth}x{actualHeight})");
     }
 
     // Save the current inventory state to preserve bits that were dragged out
@@ -654,6 +949,71 @@ public class SmithBuildManager : MonoBehaviour
         else
         {
             Debug.LogError("Failed to get InventoryBitSlotUI component from instantiated prefab!");
+        }
+    }
+
+    // Special method for Core upgrades - upgrades grid size while preserving existing build
+    public void UpgradeGridSizeAndSaveBuild(int newSize)
+    {
+        Debug.Log($"=== CORE UPGRADE: Upgrading grid size to {newSize}x{newSize} ===");
+        
+        // Load the current saved build first
+        string buildFilePath = System.IO.Path.Combine(Application.persistentDataPath, "smith_build.json");
+        SmithGridStateData existingBuild = null;
+        
+        if (System.IO.File.Exists(buildFilePath))
+        {
+            try
+            {
+                string json = System.IO.File.ReadAllText(buildFilePath);
+                existingBuild = JsonUtility.FromJson<SmithGridStateData>(json);
+                Debug.Log($"Loaded existing build with {existingBuild?.cells?.Count ?? 0} bits");
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError($"Error loading existing build: {e.Message}");
+            }
+        }
+        
+        // Update the grid size
+        gridSize = newSize;
+        
+        // Create the new build data with upgraded grid size
+        SmithGridStateData upgradedBuild = new SmithGridStateData(newSize);
+        
+        // Preserve existing bits that fit in the new grid
+        if (existingBuild != null && existingBuild.cells != null)
+        {
+            foreach (var cell in existingBuild.cells)
+            {
+                // Only keep bits that fit within the new grid size
+                if (cell.x >= 0 && cell.x < newSize && cell.y >= 0 && cell.y < newSize)
+                {
+                    upgradedBuild.cells.Add(cell);
+                    Debug.Log($"Preserved bit: {cell.bitName} at [{cell.x},{cell.y}]");
+                }
+                else
+                {
+                    Debug.Log($"Removed bit {cell.bitName} - position [{cell.x},{cell.y}] doesn't fit in {newSize}x{newSize} grid");
+                }
+            }
+        }
+        
+        // Save the upgraded build
+        string upgradedJson = JsonUtility.ToJson(upgradedBuild, true);
+        System.IO.File.WriteAllText(buildFilePath, upgradedJson);
+        
+        Debug.Log($"Grid upgrade complete! Saved build with {upgradedBuild.cells.Count} bits to {newSize}x{newSize} grid");
+        
+        // Apply the build to the player character
+        if (playerController != null)
+        {
+            playerController.LoadSmithBuild(upgradedBuild);
+            Debug.Log("Upgraded build applied to player character");
+        }
+        else
+        {
+            Debug.LogWarning("PlayerController not assigned! Cannot apply upgraded build to character.");
         }
     }
 } 

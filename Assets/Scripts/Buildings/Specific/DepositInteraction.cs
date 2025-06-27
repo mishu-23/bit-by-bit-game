@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using BitByBit.Items;
 
 public class DepositInteraction : MonoBehaviour
 {
@@ -74,13 +75,8 @@ public class DepositInteraction : MonoBehaviour
             Debug.Log("Player's build is full! Cannot add Core Bit.");
             return;
         }
-        // Give Core Bit
-        Bit coreBit = BitManager.Instance?.testCoreBit;
-        if (coreBit == null)
-        {
-            Debug.LogWarning("No Core Bit asset assigned in BitManager!");
-            return;
-        }
+        // Give Core Bit - create it consistently using the same naming pattern as GetRandomBit()
+        Bit coreBit = Bit.CreateBit("Common CoreBit", BitType.CoreBit, Rarity.Common, 0, 0f);
         bool added = BitCollectionManager.Instance.CollectBit(coreBit);
         if (added)
         {

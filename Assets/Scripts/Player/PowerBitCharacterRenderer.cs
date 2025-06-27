@@ -198,17 +198,13 @@ public class PowerBitCharacterRenderer : MonoBehaviour
             {
                 if (cell == null) continue;
 
-                // Invert the Y coordinate because UI grid Y=0 is top, but tilemap Y=0 is bottom.
-                int invertedY = (gridSize - 1) - cell.y;
-                Vector2Int bitPos = new Vector2Int(cell.x, invertedY);
+                // Use Smith UI coordinates directly - no inversion needed
+                Vector2Int bitPos = new Vector2Int(cell.x, cell.y);
 
-                SmithCellData correctedCell = cell;
-                correctedCell.y = invertedY;
-
-                activeBits[bitPos] = correctedCell;
+                activeBits[bitPos] = cell;
                 isOuterBit[bitPos] = false; // Initialize as non-outer, will be updated later
                 
-                // Place the tile
+                // Place the tile - tilemap position uses same coordinates as Smith UI
                 Tile tile = GetTileForRarity(cell.rarity);
                 if (tile != null)
                 {
@@ -222,7 +218,7 @@ public class PowerBitCharacterRenderer : MonoBehaviour
                 
                 if (showDebugInfo)
                 {
-                    Debug.Log($"Loaded Power Bit at grid({cell.x},{cell.y}) -> renderer({bitPos.x},{bitPos.y}): {cell.bitName} ({cell.rarity})");
+                    Debug.Log($"Loaded Power Bit at Unity coordinates({cell.x},{cell.y}): {cell.bitName} ({cell.rarity})");
                 }
             }
         }
@@ -437,5 +433,94 @@ public class PowerBitCharacterRenderer : MonoBehaviour
     public int GetGridSize()
     {
         return gridSize;
+    }
+
+    public void AddBit(Vector2Int position, SmithCellData cellData)
+    {
+        if (activeBits.ContainsKey(position))
+        {
+            Debug.LogWarning($"PowerBitCharacterRenderer: Bit already exists at position {position}! Overwriting...");
+        }
+
+        // Add the bit to our data structures
+        activeBits[position] = cellData;
+        isOuterBit[position] = false; // Will be updated by UpdateOuterBits()
+
+        // Place the tile visually
+        Tile tile = GetTileForRarity(cellData.rarity);
+        if (tile != null)
+        {
+            Vector3Int tilemapPos = new Vector3Int(position.x, position.y, 0);
+            tilemap.SetTile(tilemapPos, tile);
+        }
+        else
+        {
+            Debug.LogWarning($"No tile found for rarity: {cellData.rarity}");
+        }
+
+        // Update outer bit status for this bit and its neighbors
+        UpdateOuterBitsAround(position);
+
+        if (showDebugInfo)
+        {
+            Debug.Log($"Added bit {cellData.bitName} at position ({position.x}, {position.y})");
+            Debug.Log($"Total bits: {activeBits.Count}");
+        }
+    }
+
+    private void UpdateOuterBitsAround(Vector2Int centerPosition)
+    {
+        // Update the center position and all its neighbors
+        HashSet<Vector2Int> positionsToCheck = new HashSet<Vector2Int> { centerPosition };
+        
+        // Add all neighbors of the center position
+        Vector2Int[] adjacentPositions = new Vector2Int[]
+        {
+            new Vector2Int(centerPosition.x + 1, centerPosition.y), // right
+            new Vector2Int(centerPosition.x - 1, centerPosition.y), // left
+            new Vector2Int(centerPosition.x, centerPosition.y + 1), // up
+            new Vector2Int(centerPosition.x, centerPosition.y - 1)  // down
+        };
+
+        foreach (var adjacentPos in adjacentPositions)
+        {
+            if (activeBits.ContainsKey(adjacentPos))
+            {
+                positionsToCheck.Add(adjacentPos);
+            }
+        }
+
+        // Recalculate outer status for all affected positions
+        foreach (var pos in positionsToCheck)
+        {
+            if (!activeBits.ContainsKey(pos)) continue;
+
+            bool isOuter = false;
+            
+            // Check all four adjacent positions for this specific bit
+            Vector2Int[] posAdjacentPositions = new Vector2Int[]
+            {
+                new Vector2Int(pos.x + 1, pos.y), // right
+                new Vector2Int(pos.x - 1, pos.y), // left
+                new Vector2Int(pos.x, pos.y + 1), // up
+                new Vector2Int(pos.x, pos.y - 1)  // down
+            };
+            
+            foreach (var adjacentPos in posAdjacentPositions)
+            {
+                if (!activeBits.ContainsKey(adjacentPos))
+                {
+                    isOuter = true;
+                    break;
+                }
+            }
+            
+            isOuterBit[pos] = isOuter;
+        }
+
+        if (showDebugInfo)
+        {
+            Debug.Log($"Updated outer status around position {centerPosition}. Total outer bits: {isOuterBit.Count(p => p.Value)}");
+        }
     }
 } 

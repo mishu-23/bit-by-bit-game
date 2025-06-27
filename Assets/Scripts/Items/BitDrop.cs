@@ -1,217 +1,369 @@
 using UnityEngine;
+using UnityEngine.Events;
 
-public class BitDrop : MonoBehaviour
+namespace BitByBit.Items
 {
-    [Header("Bit Data")]
-    public Bit bitData;
-    
-    [Header("Collection Settings")]
-    public float collectionRange = 2f;
-    public float collectionSpeed = 5f;
-    public LayerMask groundLayer = 1; // Default layer
-    
-    [Header("F Prompt")]
-    public GameObject fIcon; // Assign the F_Icon child here
-    
-    private Rigidbody2D rb;
-    private bool isGrounded = false;
-    private bool isBeingCollected = false;
-    private bool playerInRange = false;
-    private Transform playerTransform;
-    
-    // Static reference to the prefab - assign this in the inspector of any BitDrop in the scene
-    private static GameObject bitDropPrefab;
-    
-    // Public static reference that can be assigned from anywhere
-    public static GameObject BitDropPrefab { get; set; }
-    
-    private void Awake()
+    [System.Serializable]
+    public class BitDropSettings
     {
-        rb = GetComponent<Rigidbody2D>();
-        SpriteRenderer spriteRenderer = GetComponent<SpriteRenderer>();
+        [Header("Collection")]
+        public float collectionRange = 2f;
+        public float collectionSpeed = 5f;
+        public float collectionDistance = 0.5f;
         
-        // Set the sprite based on bit data
-        if (bitData != null && spriteRenderer != null)
-        {
-            spriteRenderer.sprite = bitData.GetSprite();
-        }
+        [Header("Input")]
+        public KeyCode collectionKey = KeyCode.F;
         
-        // Set up F icon
-        SetupFIcon();
+        [Header("Performance")]
+        public float distanceCheckInterval = 0.1f;
     }
-    
-    private void SetupFIcon()
-    {
-        if (fIcon != null)
-        {
-            fIcon.SetActive(false); // Hide by default
-        }
-    }
-    
 
-    
-    private void Start()
+    [System.Serializable]
+    public class BitDropEvents
     {
-        // Find player
-        GameObject player = GameObject.FindGameObjectWithTag("Player");
-        if (player != null)
-        {
-            playerTransform = player.transform;
-        }
+        public UnityEvent<BitDrop> OnPlayerEnterRange;
+        public UnityEvent<BitDrop> OnPlayerExitRange;
+        public UnityEvent<BitDrop> OnCollectionStarted;
+        public UnityEvent<BitDrop, bool> OnCollectionCompleted;
     }
-    
-    private void Update()
+
+    public class BitDrop : MonoBehaviour
     {
-        if (isBeingCollected)
-        {
-            HandleCollection();
-        }
-        else
-        {
-            // Check distance to player for F prompt
-            CheckPlayerDistance();
+        #region Configuration
+        
+        [Header("Bit Data")]
+        [SerializeField] private Bit bitData;
+        
+        [Header("Settings")]
+        [SerializeField] private BitDropSettings settings = new BitDropSettings();
+        
+        [Header("UI References")]
+        [SerializeField] private GameObject collectionPrompt;
+        
+        [Header("Events")]
+        [SerializeField] private BitDropEvents events = new BitDropEvents();
+        
+        #endregion
+        
+        #region Private Fields
+        
+        private SpriteRenderer spriteRenderer;
+        private Transform playerTransform;
+        private float lastDistanceCheck;
+        private bool playerInRange;
+        private bool isBeingCollected;
+        
+        // Static prefab management
+        private static GameObject prefabReference;
+        
+        #endregion
+        
+        #region Properties
+        
+        public Bit BitData => bitData;
+        public bool PlayerInRange => playerInRange;
+        public BitDropSettings Settings => settings;
+        
+        public static GameObject PrefabReference 
+        { 
+            get => prefabReference; 
+            set => prefabReference = value; 
         }
         
-        // Handle F key press for collection (but not when paused)
-        if (playerInRange && Input.GetKeyDown(KeyCode.F) && 
-            (PauseManager.Instance == null || !PauseManager.Instance.IsPaused))
-        {
-            StartCollection();
-        }
-    }
-    
-    private void HandleCollection()
-    {
-        if (playerTransform == null) return;
+        #endregion
         
-        // Move towards player
-        Vector3 direction = (playerTransform.position - transform.position).normalized;
-        transform.position += direction * collectionSpeed * Time.deltaTime;
+        #region Unity Lifecycle
         
-        // Destroy when very close to player
-        float distance = Vector3.Distance(transform.position, playerTransform.position);
-        if (distance < 0.5f)
+        private void Awake()
         {
-            CollectBit();
+            InitializeComponents();
+            ValidateConfiguration();
         }
-    }
-    
-    private void CheckPlayerDistance()
-    {
-        if (playerTransform != null)
+        
+        private void Start()
         {
-            float distance = Vector3.Distance(transform.position, playerTransform.position);
-            if (distance <= collectionRange)
+            InitializePlayerReference();
+            UpdateVisualRepresentation();
+        }
+        
+        private void Update()
+        {
+            if (!isBeingCollected)
             {
-                // Show F prompt when player is in range
-                if (!playerInRange)
+                CheckPlayerDistance();
+                HandleInput();
+            }
+        }
+        
+        #endregion
+        
+        #region Initialization
+        
+        private void InitializeComponents()
+        {
+            spriteRenderer = GetComponent<SpriteRenderer>();
+            
+            if (spriteRenderer == null)
+            {
+                Debug.LogError($"BitDrop '{name}' missing SpriteRenderer component!", this);
+            }
+            
+            // Try to find collection prompt if not assigned
+            if (collectionPrompt == null)
+            {
+                Transform fIconTransform = transform.Find("F_Icon");
+                
+                if (fIconTransform != null)
                 {
-                    playerInRange = true;
-                    if (fIcon != null)
-                        fIcon.SetActive(true);
-                    Debug.Log($"Player entered {bitData.BitName} collection range");
+                    collectionPrompt = fIconTransform.gameObject;
+                    Debug.Log($"BitDrop '{name}' found collection prompt: {fIconTransform.name}");
                 }
+                else
+                {
+                    Debug.LogWarning($"BitDrop '{name}' could not find collection prompt (F_Icon). Collection prompts will not be shown.");
+                }
+            }
+        }
+        
+        private void ValidateConfiguration()
+        {
+            if (bitData == null && gameObject.scene.isLoaded)
+            {
+                Debug.LogWarning($"BitDrop '{name}' has no bit data assigned!", this);
+            }
+            
+            if (settings.collectionRange <= 0f)
+            {
+                Debug.LogWarning($"BitDrop '{name}' has invalid collection range!", this);
+                settings.collectionRange = 2f;
+            }
+            
+            if (settings.collectionSpeed <= 0f)
+            {
+                Debug.LogWarning($"BitDrop '{name}' has invalid collection speed!", this);
+                settings.collectionSpeed = 5f;
+            }
+        }
+        
+        private void InitializePlayerReference()
+        {
+            GameObject player = GameObject.FindGameObjectWithTag("Player");
+            if (player != null)
+            {
+                playerTransform = player.transform;
             }
             else
             {
-                // Hide F prompt when player is out of range
-                if (playerInRange)
-                {
-                    playerInRange = false;
-                    if (fIcon != null)
-                        fIcon.SetActive(false);
-                    Debug.Log($"Player left {bitData.BitName} collection range");
-                }
+                Debug.LogWarning($"BitDrop '{name}' could not find player object!", this);
             }
         }
-    }
-    
-    private void StartCollection()
-    {
-        isBeingCollected = true;
-        playerInRange = false;
-        if (fIcon != null)
-            fIcon.SetActive(false);
-        rb.simulated = false; // Disable physics during collection
-    }
-    
-    private void CollectBit()
-    {
-        Debug.Log($"Attempting to collect {bitData.BitName}...");
         
-        // Use BitCollectionManager to add bit to player's build
-        if (BitCollectionManager.Instance != null)
+        #endregion
+        
+        #region Collection Logic
+        
+        private void CheckPlayerDistance()
         {
+            if (playerTransform == null || Time.time - lastDistanceCheck < settings.distanceCheckInterval)
+                return;
+            
+            lastDistanceCheck = Time.time;
+            
+            float distance = Vector3.Distance(transform.position, playerTransform.position);
+            bool shouldBeInRange = distance <= settings.collectionRange;
+            
+            if (shouldBeInRange && !playerInRange)
+            {
+                playerInRange = true;
+                ShowCollectionPrompt(true);
+                events.OnPlayerEnterRange?.Invoke(this);
+            }
+            else if (!shouldBeInRange && playerInRange)
+            {
+                playerInRange = false;
+                ShowCollectionPrompt(false);
+                events.OnPlayerExitRange?.Invoke(this);
+            }
+        }
+        
+        private void HandleInput()
+        {
+            if (playerInRange && 
+                Input.GetKeyDown(settings.collectionKey) && 
+                !IsPaused())
+            {
+                Debug.Log($"BitDrop '{name}' - {settings.collectionKey} key pressed, starting collection!");
+                StartCollection();
+            }
+        }
+        
+        private bool IsPaused()
+        {
+            return PauseManager.Instance != null && PauseManager.Instance.IsPaused;
+        }
+        
+        private void StartCollection()
+        {
+            isBeingCollected = true;
+            ShowCollectionPrompt(false);
+            events.OnCollectionStarted?.Invoke(this);
+        }
+        
+        private void FixedUpdate()
+        {
+            if (isBeingCollected && playerTransform != null)
+            {
+                HandleCollection();
+            }
+        }
+        
+        private void HandleCollection()
+        {
+            if (playerTransform == null)
+            {
+                Debug.LogWarning($"BitDrop '{name}' lost player reference during collection!", this);
+                isBeingCollected = false;
+                return;
+            }
+            
+            // Move towards player
+            Vector3 direction = (playerTransform.position - transform.position).normalized;
+            transform.position += direction * settings.collectionSpeed * Time.fixedDeltaTime;
+            
+            // Check if close enough to collect
+            float distance = Vector3.Distance(transform.position, playerTransform.position);
+            if (distance <= settings.collectionDistance)
+            {
+                AttemptCollection();
+            }
+        }
+        
+        private void AttemptCollection()
+        {
+            Debug.Log($"BitDrop '{name}' - Attempting to collect bit: {bitData?.BitName ?? "NULL"}");
+            
+            if (BitCollectionManager.Instance == null)
+            {
+                Debug.LogError($"BitDrop '{name}' cannot find BitCollectionManager!", this);
+                HandleCollectionFailure();
+                return;
+            }
+            
+            Debug.Log($"BitDrop '{name}' - Found BitCollectionManager, calling CollectBit()");
             bool success = BitCollectionManager.Instance.CollectBit(bitData);
+            
+            Debug.Log($"BitDrop '{name}' - Collection result: {(success ? "SUCCESS" : "FAILED")}");
+            
             if (success)
             {
-                Debug.Log($"Collected {bitData.BitName} successfully!");
-                Destroy(gameObject);
+                HandleCollectionSuccess();
             }
             else
             {
-                Debug.Log($"Inventory is full! Cannot collect {bitData.BitName}.");
-                // Reset collection state and return to normal behavior
-                isBeingCollected = false;
-                rb.simulated = true; // Re-enable physics
-                // Don't destroy the bit, let it stay in the scene
+                HandleCollectionFailure();
+            }
+            
+            events.OnCollectionCompleted?.Invoke(this, success);
+        }
+        
+        private void HandleCollectionSuccess()
+        {
+            Debug.Log($"BitDrop '{name}' - Successfully collected!");
+            Destroy(gameObject);
+        }
+        
+        private void HandleCollectionFailure()
+        {
+            Debug.Log($"BitDrop '{name}' - Collection failed, returning to idle state");
+            isBeingCollected = false;
+        }
+        
+        #endregion
+        
+        #region Visual Management
+        
+        private void UpdateVisualRepresentation()
+        {
+            if (bitData != null && spriteRenderer != null)
+            {
+                spriteRenderer.sprite = bitData.GetSprite();
             }
         }
-        else
+        
+        private void ShowCollectionPrompt(bool show)
         {
-            Debug.LogWarning("BitCollectionManager not found! Cannot add bit to build.");
-            // Reset collection state on error too
-            isBeingCollected = false;
-            rb.simulated = true;
-        }
-    }
-    
-    private void OnCollisionEnter2D(Collision2D collision)
-    {
-        // Check if we hit the ground using layer mask
-        if (((1 << collision.gameObject.layer) & groundLayer) != 0)
-        {
-            isGrounded = true;
-        }
-    }
-    
-    private void OnCollisionExit2D(Collision2D collision)
-    {
-        // Check if we left the ground using layer mask
-        if (((1 << collision.gameObject.layer) & groundLayer) != 0)
-        {
-            isGrounded = false;
-        }
-    }
-    
-    // Public method to set bit data
-    public void SetBitData(Bit bit)
-    {
-        bitData = bit;
-        SpriteRenderer spriteRenderer = GetComponent<SpriteRenderer>();
-        if (spriteRenderer != null && bit != null)
-        {
-            spriteRenderer.sprite = bit.GetSprite();
-        }
-    }
-    
-    // Public method to drop the bit at a specific position
-    public static BitDrop CreateBitDrop(Bit bit, Vector3 position)
-    {
-        if (BitDropPrefab == null)
-        {
-            Debug.LogError("BitDropPrefab not assigned! Please assign the BitDrop prefab to BitDrop.BitDropPrefab from any script or inspector.");
-            return null;
+            if (collectionPrompt != null)
+            {
+                collectionPrompt.SetActive(show);
+            }
         }
         
-        GameObject dropObject = Instantiate(BitDropPrefab, position, Quaternion.identity);
-        BitDrop bitDrop = dropObject.GetComponent<BitDrop>();
+        #endregion
         
-        if (bitDrop != null)
+        #region Public Interface
+        
+        public void SetBitData(Bit bit)
         {
-            bitDrop.SetBitData(bit);
+            if (bit == null)
+            {
+                Debug.LogWarning($"BitDrop '{name}' - Attempted to set null bit data!", this);
+                return;
+            }
+            
+            bitData = bit;
+            UpdateVisualRepresentation();
+            Debug.Log($"BitDrop '{name}' - Bit data set to: {bit.BitName}");
         }
         
-        return bitDrop;
+        public void ForceCollection()
+        {
+            if (!isBeingCollected)
+            {
+                StartCollection();
+            }
+        }
+        
+        public float GetDistanceToPlayer()
+        {
+            if (playerTransform == null) return float.MaxValue;
+            return Vector3.Distance(transform.position, playerTransform.position);
+        }
+        
+        #endregion
+        
+        #region Factory Methods
+        
+        public static BitDrop CreateBitDrop(Bit bit, Vector3 position)
+        {
+            return CreateBitDrop(bit, position, Quaternion.identity);
+        }
+        
+        public static BitDrop CreateBitDrop(Bit bit, Vector3 position, Quaternion rotation)
+        {
+            if (prefabReference == null)
+            {
+                Debug.LogError("BitDrop prefab reference not set! Cannot create BitDrop.");
+                return null;
+            }
+            
+            Debug.Log($"Creating BitDrop for bit: {bit?.BitName ?? "NULL"} ({bit?.BitType ?? BitType.PowerBit}, {bit?.Rarity ?? Rarity.Common})");
+            
+            GameObject instance = Instantiate(prefabReference, position, rotation);
+            BitDrop bitDropComponent = instance.GetComponent<BitDrop>();
+            
+            if (bitDropComponent == null)
+            {
+                Debug.LogError("BitDrop prefab does not have BitDrop component!");
+                Destroy(instance);
+                return null;
+            }
+            
+            bitDropComponent.SetBitData(bit);
+            
+            Debug.Log($"BitDrop created successfully with bit: {bit?.BitName ?? "NULL"}");
+            return bitDropComponent;
+        }
+        
+        #endregion
     }
 } 

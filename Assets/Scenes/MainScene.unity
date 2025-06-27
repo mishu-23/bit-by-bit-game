@@ -6769,12 +6769,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   target: {fileID: 0}
-  fixedYPosition: 5
-  followSpeed: 5
-  offset: {x: 0, y: 0, z: -10}
-  enableXBoundaries: 1
-  minX: -25
-  maxX: 25
+  settings:
+    fixedYPosition: 5
+    followSpeed: 5
+    offset: {x: 0, y: 0, z: -10}
+    enableXBoundaries: 1
+    minX: -25
+    maxX: 25
+    enableRateLimiting: 0
+    updateInterval: 0.01
 --- !u!1 &1056455434
 GameObject:
   m_ObjectHideFlags: 0
@@ -7300,6 +7303,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   playerController: {fileID: 1119771332}
   bitDropPrefab: {fileID: 7894677405706821340, guid: 009100f8d98020746b957f8512d981d4, type: 3}
+  buildFileName: smith_build.json
+  defaultGridSize: 2
 --- !u!4 &1251377147
 Transform:
   m_ObjectHideFlags: 0

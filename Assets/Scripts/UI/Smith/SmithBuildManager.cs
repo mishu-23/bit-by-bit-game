@@ -310,12 +310,12 @@ public class SmithBuildManager : MonoBehaviour
         int actualWidth = gridCells.GetLength(0);
         int actualHeight = gridCells.GetLength(1);
         
-        // Collect all cell data
-        for (int y = 0; y < actualHeight; y++)
+        // Collect all cell data - convert UI coordinates to Unity coordinates
+        for (int uiY = 0; uiY < actualHeight; uiY++)
         {
             for (int x = 0; x < actualWidth; x++)
             {
-                BuildGridCellUI cell = gridCells[x, y];
+                BuildGridCellUI cell = gridCells[x, uiY];
                 if (cell != null)
                 {
                     InventoryBitSlotUI[] bitSlots = cell.GetComponentsInChildren<InventoryBitSlotUI>();
@@ -323,7 +323,9 @@ public class SmithBuildManager : MonoBehaviour
                     // Take the first bit slot if any exist
                     if (bitSlots.Length > 0 && bitSlots[0].bitData != null)
                     {
-                        SmithCellData cellData = new SmithCellData(x, y, bitSlots[0].bitData);
+                        // Convert UI Y to Unity Y coordinate
+                        int unityY = (actualHeight - 1) - uiY;
+                        SmithCellData cellData = new SmithCellData(x, unityY, bitSlots[0].bitData);
                         currentGridState.cells.Add(cellData);
                     }
                 }
@@ -399,24 +401,26 @@ public class SmithBuildManager : MonoBehaviour
         
         SmithGridStateData gridState = new SmithGridStateData(gridSize);
         
-        // Collect all cell data
-        for (int y = 0; y < gridSize; y++)
+        // Collect all cell data - convert UI grid to Unity coordinate system (Y=0 at bottom)
+        for (int uiY = 0; uiY < gridSize; uiY++)
         {
             for (int x = 0; x < gridSize; x++)
             {
-                BuildGridCellUI cell = gridCells[x, y];
+                BuildGridCellUI cell = gridCells[x, uiY];
                 InventoryBitSlotUI[] bitSlots = cell.GetComponentsInChildren<InventoryBitSlotUI>();
                 
                 // Take the first bit slot if any exist
                 if (bitSlots.Length > 0 && bitSlots[0].bitData != null)
                 {
-                    SmithCellData cellData = new SmithCellData(x, y, bitSlots[0].bitData);
+                    // Convert UI Y to Unity Y coordinate (flip vertically)
+                    int unityY = (gridSize - 1) - uiY;
+                    SmithCellData cellData = new SmithCellData(x, unityY, bitSlots[0].bitData);
                     gridState.cells.Add(cellData);
-                    Debug.Log($"Cell [{x},{y}]: {bitSlots[0].bitData.BitName} ({bitSlots[0].bitData.Rarity})");
+                    Debug.Log($"UI Cell [{x},{uiY}] -> Unity coordinates [{x},{unityY}]: {bitSlots[0].bitData.BitName} ({bitSlots[0].bitData.Rarity})");
                 }
                 else
                 {
-                    Debug.Log($"Cell [{x},{y}]: Empty");
+                    Debug.Log($"UI Cell [{x},{uiY}]: Empty");
                 }
             }
         }
@@ -477,23 +481,22 @@ public class SmithBuildManager : MonoBehaviour
     {
         Debug.Log("=== LOADING CURRENT BUILD INTO SMITH UI ===");
         
-        // Ensure the grid is properly sized for the current gridSize
-        if (gridCells == null || gridCells.GetLength(0) != gridSize || gridCells.GetLength(1) != gridSize)
-        {
-            Debug.Log($"Grid size mismatch detected. Current gridSize: {gridSize}, actual grid dimensions: {(gridCells != null ? $"{gridCells.GetLength(0)}x{gridCells.GetLength(1)}" : "null")}");
-            Debug.Log("Recreating grid to match current gridSize...");
-            CreateGridCells();
-        }
-        
-        // Save the original state before making any changes
-        SaveOriginalBuildState();
-        SaveOriginalInventoryState();
-        
-        // Load the saved build data
+        // Load the saved build data first to get the correct grid size
         string buildFilePath = System.IO.Path.Combine(Application.persistentDataPath, "smith_build.json");
         if (!System.IO.File.Exists(buildFilePath))
         {
             Debug.Log("No saved build found. Starting with empty grid.");
+            
+            // Ensure the grid is properly sized for the current gridSize
+            if (gridCells == null || gridCells.GetLength(0) != gridSize || gridCells.GetLength(1) != gridSize)
+            {
+                Debug.Log($"Grid size mismatch detected. Current gridSize: {gridSize}, actual grid dimensions: {(gridCells != null ? $"{gridCells.GetLength(0)}x{gridCells.GetLength(1)}" : "null")}");
+                Debug.Log("Recreating grid to match current gridSize...");
+                CreateGridCells();
+            }
+            
+            SaveOriginalBuildState();
+            SaveOriginalInventoryState();
             ClearGrid();
             return;
         }
@@ -501,22 +504,77 @@ public class SmithBuildManager : MonoBehaviour
         try
         {
             string json = System.IO.File.ReadAllText(buildFilePath);
+            Debug.Log($"Smith Builder: Loading JSON from {buildFilePath}");
+            Debug.Log($"Smith Builder: JSON content length: {json.Length} characters");
+            Debug.Log($"Smith Builder: First 200 chars of JSON: {json.Substring(0, Mathf.Min(200, json.Length))}...");
+            
             SmithGridStateData gridState = JsonUtility.FromJson<SmithGridStateData>(json);
             
             if (gridState != null)
             {
+                Debug.Log($"Smith Builder: Parsed build data - Grid size: {gridState.gridSize}x{gridState.gridSize}, Cells: {gridState.cells?.Count ?? 0}");
+                
+                // Log first few cells for debugging
+                if (gridState.cells != null && gridState.cells.Count > 0)
+                {
+                    Debug.Log("Smith Builder: First few bits in build:");
+                    for (int i = 0; i < Mathf.Min(5, gridState.cells.Count); i++)
+                    {
+                        var cell = gridState.cells[i];
+                        Debug.Log($"  [{i}] Position ({cell.x},{cell.y}): {cell.bitName} ({cell.rarity})");
+                    }
+                }
+                
+                // CRITICAL FIX: Auto-detect and set the correct grid size from saved build
+                if (gridState.gridSize != gridSize)
+                {
+                    Debug.Log($"Grid size mismatch detected! Build file has {gridState.gridSize}x{gridState.gridSize}, but Smith Builder is set to {gridSize}x{gridSize}");
+                    Debug.Log($"Automatically adjusting Smith Builder to match build file: {gridState.gridSize}x{gridState.gridSize}");
+                    gridSize = gridState.gridSize;
+                }
+                
+                // Ensure the grid is properly sized for the detected gridSize
+                if (gridCells == null || gridCells.GetLength(0) != gridSize || gridCells.GetLength(1) != gridSize)
+                {
+                    Debug.Log($"Recreating grid to match build file size: {gridSize}x{gridSize}");
+                    CreateGridCells();
+                }
+                
+                // Save the original state before making any changes
+                SaveOriginalBuildState();
+                SaveOriginalInventoryState();
+                
                 LoadBuildIntoGrid(gridState);
-                Debug.Log($"Loaded build with {gridState.cells.Count} bits into Smith UI");
+                UpdateGridSizeIndicator(); // Update the UI to show the correct grid size
+                Debug.Log($"Successfully loaded build with {gridState.cells.Count} bits into {gridSize}x{gridSize} Smith UI");
             }
             else
             {
                 Debug.LogWarning("Failed to parse saved build data. Starting with empty grid.");
+                
+                // Ensure the grid is properly sized for the current gridSize
+                if (gridCells == null || gridCells.GetLength(0) != gridSize || gridCells.GetLength(1) != gridSize)
+                {
+                    CreateGridCells();
+                }
+                
+                SaveOriginalBuildState();
+                SaveOriginalInventoryState();
                 ClearGrid();
             }
         }
         catch (System.Exception e)
         {
             Debug.LogError($"Error loading build: {e.Message}. Starting with empty grid.");
+            
+            // Ensure the grid is properly sized for the current gridSize
+            if (gridCells == null || gridCells.GetLength(0) != gridSize || gridCells.GetLength(1) != gridSize)
+            {
+                CreateGridCells();
+            }
+            
+            SaveOriginalBuildState();
+            SaveOriginalInventoryState();
             ClearGrid();
         }
         
@@ -540,19 +598,21 @@ public class SmithBuildManager : MonoBehaviour
         int actualWidth = gridCells.GetLength(0);
         int actualHeight = gridCells.GetLength(1);
         
-        // Collect current build state
-        for (int y = 0; y < actualHeight; y++)
+        // Collect current build state - convert UI coordinates to Unity coordinates
+        for (int uiY = 0; uiY < actualHeight; uiY++)
         {
             for (int x = 0; x < actualWidth; x++)
             {
-                BuildGridCellUI cell = gridCells[x, y];
+                BuildGridCellUI cell = gridCells[x, uiY];
                 if (cell != null)
                 {
                     InventoryBitSlotUI[] bitSlots = cell.GetComponentsInChildren<InventoryBitSlotUI>();
                     
                     if (bitSlots.Length > 0 && bitSlots[0].bitData != null)
                     {
-                        SmithCellData cellData = new SmithCellData(x, y, bitSlots[0].bitData);
+                        // Convert UI Y to Unity Y coordinate
+                        int unityY = (actualHeight - 1) - uiY;
+                        SmithCellData cellData = new SmithCellData(x, unityY, bitSlots[0].bitData);
                         originalBuildState.cells.Add(cellData);
                     }
                 }
@@ -700,14 +760,19 @@ public class SmithBuildManager : MonoBehaviour
         int actualWidth = gridCells.GetLength(0);
         int actualHeight = gridCells.GetLength(1);
         
-        // Load each bit into the grid
+        // Load each bit into the grid - convert Unity coordinates to UI grid coordinates
         foreach (var cell in gridState.cells)
         {
+            // Convert Unity Y coordinate to UI Y coordinate (flip vertically)
+            int uiY = (gridSize - 1) - cell.y;
+            
             // Check bounds against both gridSize and actual array dimensions
-            if (cell.x >= 0 && cell.x < gridSize && cell.y >= 0 && cell.y < gridSize &&
-                cell.x < actualWidth && cell.y < actualHeight)
+            if (cell.x >= 0 && cell.x < gridSize && uiY >= 0 && uiY < gridSize &&
+                cell.x < actualWidth && uiY < actualHeight)
             {
-                BuildGridCellUI gridCell = gridCells[cell.x, cell.y];
+                BuildGridCellUI gridCell = gridCells[cell.x, uiY];
+                
+                Debug.Log($"Loading bit {cell.bitName} from Unity coordinates({cell.x},{cell.y}) to UI position({cell.x},{uiY})");
                 
                 if (gridCell != null)
                 {
@@ -739,7 +804,7 @@ public class SmithBuildManager : MonoBehaviour
                             // Tell the grid cell it's occupied
                             gridCell.SetCurrentBitSlot(bitSlot);
                             
-                            Debug.Log($"Loaded {cell.bitName} into grid position [{cell.x},{cell.y}]");
+                            Debug.Log($"Loaded {cell.bitName} into UI position [{cell.x},{uiY}] from Unity coordinates [{cell.x},{cell.y}]");
                         }
                     }
                     else

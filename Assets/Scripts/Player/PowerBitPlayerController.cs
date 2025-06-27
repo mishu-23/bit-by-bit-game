@@ -464,17 +464,18 @@ public class PowerBitPlayerController : MonoBehaviour
         UpdateColliderSize();
         
         // Create a Bit object from the stolen data
-        Bit stolenBit = ScriptableObject.CreateInstance<Bit>();
-        stolenBit.bitName = stolenBitData.bitName;
-        stolenBit.bitType = stolenBitData.bitType;
-        stolenBit.rarity = stolenBitData.rarity;
-        stolenBit.damage = stolenBitData.damage;
-        stolenBit.shootingProbability = stolenBitData.shootingProbability;
+        Bit stolenBit = Bit.CreateBit(
+            stolenBitData.bitName,
+            stolenBitData.bitType,
+            stolenBitData.rarity,
+            stolenBitData.damage,
+            stolenBitData.shootingProbability
+        );
         
         // Save the updated build (without the stolen bit)
         SaveUpdatedBuild();
         
-        Debug.Log($"Stole {stolenBit.bitName} from player's build at position ({bitToSteal.x}, {bitToSteal.y})");
+        Debug.Log($"Stole {stolenBit.BitName} from player's build at position ({bitToSteal.x}, {bitToSteal.y})");
         return stolenBit;
     }
     

@@ -205,7 +205,7 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
             if (attachedBitData != null)
             {
                 // Create a simple bit drop object (without physics or collection)
-                attachedBitDrop = new GameObject($"AttachedBitDrop_{attachedBitData.bitName}");
+                attachedBitDrop = new GameObject($"AttachedBitDrop_{attachedBitData.BitName}");
                 attachedBitDrop.transform.SetParent(transform);
                 
                 // Add sprite renderer
@@ -217,7 +217,7 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
                 originalBitDropOffset = bitDropOffset;
                 UpdateAttachedBitDropPosition();
                 
-                DebugLog($"CrawlingEntity {gameObject.name} created attached bit drop: {attachedBitData.bitName}");
+                DebugLog($"CrawlingEntity {gameObject.name} created attached bit drop: {attachedBitData.BitName}");
             }
         }
     }
@@ -397,7 +397,7 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
         // Don't steal if we already have a bit attached
         if (attachedBitData != null)
         {
-            DebugLog($"CrawlingEntity {gameObject.name} already has a bit attached ({attachedBitData.bitName}), won't steal another one!");
+            DebugLog($"CrawlingEntity {gameObject.name} already has a bit attached ({attachedBitData.BitName}), won't steal another one!");
             return;
         }
         
@@ -413,7 +413,7 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
                 {
                     // Create the attached bit drop with the stolen bit
                     CreateAttachedBitDropWithBit(stolenBit);
-                    DebugLog($"CrawlingEntity {gameObject.name} stole {stolenBit.bitName} from player's build!");
+                    DebugLog($"CrawlingEntity {gameObject.name} stole {stolenBit.BitName} from player's build!");
                 }
                 else
                 {
@@ -434,7 +434,7 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
             attachedBitData = bit;
             
             // Create a simple bit drop object (without physics or collection)
-            attachedBitDrop = new GameObject($"AttachedBitDrop_{attachedBitData.bitName}");
+            attachedBitDrop = new GameObject($"AttachedBitDrop_{attachedBitData.BitName}");
             attachedBitDrop.transform.SetParent(transform);
             
             // Add sprite renderer
@@ -446,7 +446,7 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
             originalBitDropOffset = bitDropOffset;
             UpdateAttachedBitDropPosition();
             
-            DebugLog($"CrawlingEntity {gameObject.name} created attached bit drop: {attachedBitData.bitName}");
+            DebugLog($"CrawlingEntity {gameObject.name} created attached bit drop: {attachedBitData.BitName}");
         }
     }
 
@@ -583,7 +583,7 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
             // Create a real bit drop at entity's position
             Vector3 dropPosition = transform.position + Vector3.up * 0.5f; // Slightly above the entity
             BitDrop.CreateBitDrop(attachedBitData, dropPosition);
-            DebugLog($"CrawlingEntity {gameObject.name} dropped stolen bit: {attachedBitData.bitName} (Type: {attachedBitData.bitType}, Rarity: {attachedBitData.rarity})!");
+            DebugLog($"CrawlingEntity {gameObject.name} dropped stolen bit: {attachedBitData.BitName} (Type: {attachedBitData.BitType}, Rarity: {attachedBitData.Rarity})!");
         }
     }
     
@@ -598,7 +598,7 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
                 // Create bit drop at entity's position
                 Vector3 dropPosition = transform.position + Vector3.up * 0.5f; // Slightly above the entity
                 BitDrop.CreateBitDrop(randomBit, dropPosition);
-                DebugLog($"CrawlingEntity {gameObject.name} dropped {randomBit.bitName} (Type: {randomBit.bitType}, Rarity: {randomBit.rarity})!");
+                DebugLog($"CrawlingEntity {gameObject.name} dropped {randomBit.BitName} (Type: {randomBit.BitType}, Rarity: {randomBit.Rarity})!");
             }
             else
             {
@@ -784,11 +784,7 @@ public class CrawlingEntity : MonoBehaviour, IDamageable
         if (deposit != null && deposit.RemoveCoreBit())
         {
             // Create a core bit to carry
-            Bit coreBit = new Bit
-            {
-                bitType = BitType.CoreBit,
-                rarity = Rarity.Common
-            };
+            Bit coreBit = Bit.CreateBit("Core Bit", BitType.CoreBit, Rarity.Common, 1, 0.5f);
             
             CreateAttachedBitDropWithBit(coreBit);
             DebugLog($"CrawlingEntity {gameObject.name} stole a core bit from deposit!");

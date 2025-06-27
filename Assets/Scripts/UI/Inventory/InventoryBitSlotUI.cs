@@ -107,7 +107,7 @@ public class InventoryBitSlotUI : MonoBehaviour, IBeginDragHandler, IDragHandler
             rectTransform.anchorMax = new Vector2(0, 0);
             rectTransform.pivot = new Vector2(0.5f, 0.5f);
             
-            Debug.Log($"Returned {bitData?.bitName} to inventory");
+            Debug.Log($"Returned {bitData?.BitName} to inventory");
         }
         else
         {

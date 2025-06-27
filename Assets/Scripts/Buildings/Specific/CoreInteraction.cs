@@ -161,12 +161,7 @@ public class CoreInteraction : MonoBehaviour
                 playerController.powerBitCharacterRenderer.RemoveBit(pos);
                 
                 // Create a Bit object to return
-                Bit bit = ScriptableObject.CreateInstance<Bit>();
-                bit.bitName = bitData.bitName;
-                bit.bitType = bitData.bitType;
-                bit.rarity = bitData.rarity;
-                bit.damage = bitData.damage;
-                bit.shootingProbability = bitData.shootingProbability;
+                Bit bit = Bit.CreateBit(bitData.bitName, bitData.bitType, bitData.rarity, bitData.damage, bitData.shootingProbability);
                 
                 // Save updated build
                 playerController.SaveUpdatedBuild();
@@ -472,7 +467,7 @@ public class CoreInteraction : MonoBehaviour
         
         foreach (var bit in storedCoreBits)
         {
-            saveData.coreBitNames.Add(bit.bitName);
+            saveData.coreBitNames.Add(bit.BitName);
         }
         
         string json = JsonUtility.ToJson(saveData, true);
@@ -506,13 +501,8 @@ public class CoreInteraction : MonoBehaviour
             // Recreate Core Bits (simplified - just create basic Core Bits)
             for (int i = 0; i < saveData.coreBitCount; i++)
             {
-                Bit coreBit = ScriptableObject.CreateInstance<Bit>();
-                coreBit.bitName = i < saveData.coreBitNames.Count ? saveData.coreBitNames[i] : "Core Bit";
-                coreBit.bitType = BitType.CoreBit;
-                coreBit.rarity = Rarity.Common;
-                coreBit.damage = 0;
-                coreBit.shootingProbability = 0f;
-                
+                string bitName = i < saveData.coreBitNames.Count ? saveData.coreBitNames[i] : "Core Bit";
+                Bit coreBit = Bit.CreateBit(bitName, BitType.CoreBit, Rarity.Common, 0, 0f);
                 storedCoreBits.Add(coreBit);
             }
             

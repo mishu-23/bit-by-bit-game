@@ -33,13 +33,13 @@ public class SmithCellData
     {
         this.x = x;
         this.y = y;
-        if (bitData != null)
-        {
-            this.bitName = bitData.bitName;
-            this.bitType = bitData.bitType;
-            this.rarity = bitData.rarity;
-            this.damage = bitData.damage;
-            this.shootingProbability = bitData.shootingProbability;
+                    if (bitData != null)
+            {
+                this.bitName = bitData.BitName;
+                this.bitType = bitData.BitType;
+                this.rarity = bitData.Rarity;
+                this.damage = bitData.Damage;
+                this.shootingProbability = bitData.ShootingProbability;
         }
     }
 }
@@ -113,24 +113,18 @@ public class SmithBuildManager : MonoBehaviour
         {
             if (bit != null)
             {
-                this.bitName = bit.bitName;
-                this.bitType = bit.bitType;
-                this.rarity = bit.rarity;
-                this.damage = bit.damage;
-                this.shootingProbability = bit.shootingProbability;
+                this.bitName = bit.BitName;
+                this.bitType = bit.BitType;
+                this.rarity = bit.Rarity;
+                this.damage = bit.Damage;
+                this.shootingProbability = bit.ShootingProbability;
             }
         }
         
         // Convert back to a Bit object
         public Bit ToBit()
         {
-            Bit bit = ScriptableObject.CreateInstance<Bit>();
-            bit.bitName = this.bitName;
-            bit.bitType = this.bitType;
-            bit.rarity = this.rarity;
-            bit.damage = this.damage;
-            bit.shootingProbability = this.shootingProbability;
-            return bit;
+            return Bit.CreateBit(this.bitName, this.bitType, this.rarity, this.damage, this.shootingProbability);
         }
     }
 
@@ -418,7 +412,7 @@ public class SmithBuildManager : MonoBehaviour
                 {
                     SmithCellData cellData = new SmithCellData(x, y, bitSlots[0].bitData);
                     gridState.cells.Add(cellData);
-                    Debug.Log($"Cell [{x},{y}]: {bitSlots[0].bitData.bitName} ({bitSlots[0].bitData.rarity})");
+                    Debug.Log($"Cell [{x},{y}]: {bitSlots[0].bitData.BitName} ({bitSlots[0].bitData.Rarity})");
                 }
                 else
                 {
@@ -632,13 +626,13 @@ public class SmithBuildManager : MonoBehaviour
             {
                 // Check if this bit was in the original inventory
                 bool wasInOriginal = originalInventoryState.Any(original => 
-                    original.bitData.bitName == slot.bitData.bitName &&
-                    original.bitData.rarity == slot.bitData.rarity);
+                    original.bitData.bitName == slot.bitData.BitName &&
+                    original.bitData.rarity == slot.bitData.Rarity);
                 
                 if (!wasInOriginal)
                 {
                     // This bit was added during the session, remove it
-                    Debug.Log($"Removing added bit: {slot.bitData.bitName}");
+                    Debug.Log($"Removing added bit: {slot.bitData.BitName}");
                     Destroy(slot.gameObject);
                 }
             }
@@ -652,8 +646,8 @@ public class SmithBuildManager : MonoBehaviour
             foreach (var currentSlot in currentSlots)
             {
                 if (currentSlot.bitData != null &&
-                    currentSlot.bitData.bitName == originalBit.bitData.bitName &&
-                    currentSlot.bitData.rarity == originalBit.bitData.rarity)
+                                    currentSlot.bitData.BitName == originalBit.bitData.bitName &&
+                currentSlot.bitData.Rarity == originalBit.bitData.rarity)
                 {
                     // Restore original position and properties
                     RectTransform rectTransform = currentSlot.GetComponent<RectTransform>();
@@ -763,11 +757,7 @@ public class SmithBuildManager : MonoBehaviour
         // Create a temporary Bit object from the saved data
         // This is a simplified approach - you might want to use BitManager to get the actual Bit assets
         Bit bit = ScriptableObject.CreateInstance<Bit>();
-        bit.bitName = cell.bitName;
-        bit.bitType = cell.bitType;
-        bit.rarity = cell.rarity;
-        bit.damage = cell.damage;
-        bit.shootingProbability = cell.shootingProbability;
+                    bit = Bit.CreateBit(cell.bitName, cell.bitType, cell.rarity, cell.damage, cell.shootingProbability);
         
         return bit;
     }
@@ -825,7 +815,7 @@ public class SmithBuildManager : MonoBehaviour
                 {
                     InventoryBitData bitData = new InventoryBitData(slot);
                     currentInventoryState.Add(bitData);
-                    Debug.Log($"Saving inventory bit: {slot.bitData.bitName} (Type: {slot.bitData.bitType}, Rarity: {slot.bitData.rarity})");
+                    Debug.Log($"Saving inventory bit: {slot.bitData.BitName} (Type: {slot.bitData.BitType}, Rarity: {slot.bitData.Rarity})");
                 }
             }
         }
@@ -944,7 +934,7 @@ public class SmithBuildManager : MonoBehaviour
             rectTransform.anchorMax = savedBit.originalAnchors;
             rectTransform.pivot = savedBit.originalPivot;
             
-            Debug.Log($"Restored inventory bit: {restoredBit.bitName} (Type: {restoredBit.bitType}, Rarity: {restoredBit.rarity})");
+            Debug.Log($"Restored inventory bit: {restoredBit.BitName} (Type: {restoredBit.BitType}, Rarity: {restoredBit.Rarity})");
         }
         else
         {

@@ -65,7 +65,7 @@ public class BitCollectionManager : MonoBehaviour
         int maxBits = currentBuild.gridSize * currentBuild.gridSize;
         if (currentBuild.cells.Count >= maxBits)
         {
-            Debug.Log($"Build is full! Cannot add {bitData.bitName}. Build has {currentBuild.cells.Count}/{maxBits} bits.");
+            Debug.Log($"Build is full! Cannot add {bitData.BitName}. Build has {currentBuild.cells.Count}/{maxBits} bits.");
             return false;
         }
 
@@ -92,7 +92,7 @@ public class BitCollectionManager : MonoBehaviour
             playerController.LoadSmithBuild(currentBuild);
         }
 
-        Debug.Log($"Added {bitData.bitName} to build at position ({emptyPosition.x}, {emptyPosition.y})");
+        Debug.Log($"Added {bitData.BitName} to build at position ({emptyPosition.x}, {emptyPosition.y})");
         return true;
     }
     

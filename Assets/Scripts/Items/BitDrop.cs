@@ -109,7 +109,7 @@ public class BitDrop : MonoBehaviour
                     playerInRange = true;
                     if (fIcon != null)
                         fIcon.SetActive(true);
-                    Debug.Log($"Player entered {bitData.bitName} collection range");
+                    Debug.Log($"Player entered {bitData.BitName} collection range");
                 }
             }
             else
@@ -120,7 +120,7 @@ public class BitDrop : MonoBehaviour
                     playerInRange = false;
                     if (fIcon != null)
                         fIcon.SetActive(false);
-                    Debug.Log($"Player left {bitData.bitName} collection range");
+                    Debug.Log($"Player left {bitData.BitName} collection range");
                 }
             }
         }
@@ -137,7 +137,7 @@ public class BitDrop : MonoBehaviour
     
     private void CollectBit()
     {
-        Debug.Log($"Attempting to collect {bitData.bitName}...");
+        Debug.Log($"Attempting to collect {bitData.BitName}...");
         
         // Use BitCollectionManager to add bit to player's build
         if (BitCollectionManager.Instance != null)
@@ -145,12 +145,12 @@ public class BitDrop : MonoBehaviour
             bool success = BitCollectionManager.Instance.CollectBit(bitData);
             if (success)
             {
-                Debug.Log($"Collected {bitData.bitName} successfully!");
+                Debug.Log($"Collected {bitData.BitName} successfully!");
                 Destroy(gameObject);
             }
             else
             {
-                Debug.Log($"Inventory is full! Cannot collect {bitData.bitName}.");
+                Debug.Log($"Inventory is full! Cannot collect {bitData.BitName}.");
                 // Reset collection state and return to normal behavior
                 isBeingCollected = false;
                 rb.simulated = true; // Re-enable physics

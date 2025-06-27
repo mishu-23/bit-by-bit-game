@@ -50,7 +50,7 @@ public class BuildGridCellUI : MonoBehaviour, IDropHandler, IPointerEnterHandler
             slotRect.anchoredPosition = Vector2.zero;
             currentBitSlot = draggedSlot;
             draggedSlot.MarkDroppedOnGridCell();
-            Debug.Log($"Dropped {draggedSlot.bitData.bitName} into grid cell! (Swapped with previous bit)");
+            Debug.Log($"Dropped {draggedSlot.bitData.BitName} into grid cell! (Swapped with previous bit)");
         }
     }
 
@@ -74,7 +74,7 @@ public class BuildGridCellUI : MonoBehaviour, IDropHandler, IPointerEnterHandler
             rectTransform.anchorMax = new Vector2(0, 0);
             rectTransform.pivot = new Vector2(0.5f, 0.5f);
             
-            Debug.Log($"Returned {bitSlot.bitData?.bitName} to inventory (swapped out)");
+            Debug.Log($"Returned {bitSlot.bitData?.BitName} to inventory (swapped out)");
         }
         else
         {

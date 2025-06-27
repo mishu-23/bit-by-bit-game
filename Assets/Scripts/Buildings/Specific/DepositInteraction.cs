@@ -143,12 +143,7 @@ public class DepositInteraction : MonoBehaviour
             {
                 playerController.powerBitCharacterRenderer.RemoveBit(pos);
                 // Create a Bit object to return
-                Bit bit = ScriptableObject.CreateInstance<Bit>();
-                bit.bitName = bitData.bitName;
-                bit.bitType = bitData.bitType;
-                bit.rarity = bitData.rarity;
-                bit.damage = bitData.damage;
-                bit.shootingProbability = bitData.shootingProbability;
+                Bit bit = Bit.CreateBit(bitData.bitName, bitData.bitType, bitData.rarity, bitData.damage, bitData.shootingProbability);
                 // Save updated build
                 playerController.SaveUpdatedBuild();
                 return bit;

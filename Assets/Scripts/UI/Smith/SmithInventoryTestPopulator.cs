@@ -27,7 +27,7 @@ public class SmithInventoryTestPopulator : MonoBehaviour
         // Instantiate a slot for each test Power Bit
         foreach (Bit bit in testPowerBits)
         {
-            if (bit == null || bit.bitType != BitType.PowerBit) continue;
+            if (bit == null || bit.BitType != BitType.PowerBit) continue;
             GameObject slotGO = Instantiate(inventoryBitSlotPrefab, inventoryContent);
             InventoryBitSlotUI slotUI = slotGO.GetComponent<InventoryBitSlotUI>();
             if (slotUI != null)

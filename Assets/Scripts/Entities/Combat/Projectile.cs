@@ -2,11 +2,13 @@ using UnityEngine;
 
 public class Projectile : MonoBehaviour
 {
+    #region Serialized Fields
+    
     [Header("Projectile Settings")]
     [SerializeField] private float speed = 10f;
     [SerializeField] private float lifetime = 5f;
     [SerializeField] private int damage = 1;
-    [SerializeField] private LayerMask targetLayers = 1; // Default to everything
+    [SerializeField] private LayerMask targetLayers = 1;
     [SerializeField] private bool destroyOnHit = true;
     
     [Header("Visual Effects")]
@@ -14,152 +16,230 @@ public class Projectile : MonoBehaviour
     [SerializeField] private SpriteRenderer spriteRenderer;
     
     [Header("Debug")]
-    [SerializeField] private bool showDebugInfo = false;
+    [SerializeField] private bool showDebugInfo = true;
+    
+    #endregion
+
+    #region Private Fields
     
     private Vector2 direction;
-    private float timer;
     private bool hasHit = false;
+    private float timer;
+    private Rarity rarity = Rarity.Common;
     
-    // Properties for different projectile types
+    #endregion
+
+    #region Public Properties
+    
     public int Damage { get => damage; set => damage = value; }
-    public Rarity ProjectileRarity { get; set; } = Rarity.Common;
-    public string ProjectileType { get; set; } = "Default";
+    public Rarity Rarity { get => rarity; set => rarity = value; }
     
+    #endregion
+
+    #region Unity Lifecycle
+
     private void Awake()
+    {
+        InitializeComponents();
+        InitializeTimer();
+    }
+
+    private void Start()
+    {
+        LogSpawnInfo();
+    }
+
+    private void Update()
+    {
+        if (hasHit) return;
+
+        ProcessMovement();
+        ProcessLifetime();
+    }
+
+    #endregion
+
+    #region Initialization
+
+    private void InitializeComponents()
     {
         if (spriteRenderer == null)
         {
             spriteRenderer = GetComponent<SpriteRenderer>();
         }
-        
+    }
+
+    private void InitializeTimer()
+    {
         timer = lifetime;
     }
-    
-    private void Start()
+
+    #endregion
+
+    #region Public Interface
+
+    public void Initialize(Vector2 direction, int damage = 1, Rarity rarity = Rarity.Common)
     {
-        if (showDebugInfo)
-        {
-            Debug.Log($"Projectile spawned: {ProjectileType} (Damage: {damage}, Rarity: {ProjectileRarity})");
-        }
+        SetDirection(direction);
+        SetDamage(damage);
+        SetRarity(rarity);
+        SetRotation(direction);
+        
+        LogInitializationInfo();
     }
-    
-    private void Update()
+
+    #endregion
+
+    #region Movement and Lifetime
+
+    private void ProcessMovement()
     {
-        if (hasHit) return;
-        
-        // Move projectile
         transform.Translate(direction * speed * Time.deltaTime, Space.World);
-        
-        // Lifetime check
+    }
+
+    private void ProcessLifetime()
+    {
         timer -= Time.deltaTime;
         if (timer <= 0f)
         {
-            if (showDebugInfo)
-            {
-                Debug.Log("Projectile destroyed due to lifetime");
-            }
+            LogDebugInfo("Projectile destroyed due to lifetime");
             DestroyProjectile();
         }
     }
-    
-    public void Initialize(Vector2 direction, int damage = 1, Rarity rarity = Rarity.Common, string projectileType = "Default")
-    {
-        this.direction = direction.normalized;
-        this.damage = damage;
-        this.ProjectileRarity = rarity;
-        this.ProjectileType = projectileType;
-        
-        // Rotate projectile to face direction
-        float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
-        transform.rotation = Quaternion.AngleAxis(angle, Vector3.forward);
-        
-        if (showDebugInfo)
-        {
-            Debug.Log($"Projectile initialized: Direction={direction}, Damage={damage}, Rarity={rarity}, Type={projectileType}");
-        }
-    }
-    
+
+    #endregion
+
+    #region Collision and Combat
+
     private void OnTriggerEnter2D(Collider2D other)
     {
         if (hasHit) return;
+
+        if (ShouldIgnoreCollision(other)) return;
+
+        if (CanDamageTarget(other))
+        {
+            ProcessHit(other);
+        }
+    }
+
+    private void ProcessHit(Collider2D other)
+    {
+        hasHit = true;
         
+        DealDamageToTarget(other);
+        SpawnHitEffect();
+        
+        if (destroyOnHit)
+        {
+            DestroyProjectile();
+        }
+    }
+
+    private bool ShouldIgnoreCollision(Collider2D other)
+    {
         // Ignore collisions with other projectiles
         if (other.GetComponent<Projectile>() != null)
-        {
-            return;
-        }
+            return true;
         
         // Ignore collisions with gatherer entities
         if (other.GetComponent<GathererEntity>() != null)
-        {
-            return;
-        }
+            return true;
         
-        // Check if we hit a valid target
-        if (((1 << other.gameObject.layer) & targetLayers) != 0)
+        return false;
+    }
+
+    private bool CanDamageTarget(Collider2D other)
+    {
+        return ((1 << other.gameObject.layer) & targetLayers) != 0;
+    }
+
+    private void DealDamageToTarget(Collider2D other)
+    {
+        var damageable = other.GetComponent<IDamageable>();
+        if (damageable != null)
         {
-            hasHit = true;
-            
-            // Try to damage the target
-            var damageable = other.GetComponent<IDamageable>();
-            if (damageable != null)
-            {
-                damageable.TakeDamage(damage);
-                if (showDebugInfo)
-                {
-                    Debug.Log($"Projectile hit {other.name} for {damage} damage");
-                }
-            }
-            else if (showDebugInfo)
-            {
-                Debug.Log($"Projectile hit {other.name} but it's not damageable");
-            }
-            
-            // Spawn hit effect
-            if (hitEffect != null)
-            {
-                Instantiate(hitEffect, transform.position, transform.rotation);
-            }
-            
-            // Destroy projectile
-            if (destroyOnHit)
-            {
-                DestroyProjectile();
-            }
+            damageable.TakeDamage(damage);
+            LogDebugInfo($"Projectile hit {other.name} for {damage} damage");
+        }
+        else
+        {
+            LogDebugInfo($"Projectile hit {other.name} but it's not damageable");
         }
     }
-    
+
+    #endregion
+
+    #region Visual Effects
+
+    private void SpawnHitEffect()
+    {
+        if (hitEffect != null)
+        {
+            Instantiate(hitEffect, transform.position, transform.rotation);
+        }
+    }
+
+
+
+    #endregion
+
+    #region Property Management
+
+    private void SetDirection(Vector2 newDirection)
+    {
+        direction = newDirection.normalized;
+    }
+
+    private void SetDamage(int newDamage)
+    {
+        damage = newDamage;
+    }
+
+    private void SetRarity(Rarity newRarity)
+    {
+        rarity = newRarity;
+    }
+
+    private void SetRotation(Vector2 direction)
+    {
+        float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
+        transform.rotation = Quaternion.AngleAxis(angle, Vector3.forward);
+    }
+
+    #endregion
+
+    #region Destruction
+
     private void DestroyProjectile()
+    {
+        LogDebugInfo("Destroying projectile");
+        Destroy(gameObject);
+    }
+
+    #endregion
+
+    #region Debug and Logging
+
+    private void LogDebugInfo(string message)
     {
         if (showDebugInfo)
         {
-            Debug.Log($"Destroying projectile: {ProjectileType}");
+            Debug.Log(message);
         }
-        Destroy(gameObject);
     }
-    
-    // Public method to set projectile appearance based on rarity
-    public void SetAppearance(Rarity rarity)
+
+    private void LogInitializationInfo()
     {
-        if (spriteRenderer == null) return;
-        
-        // You can set different colors or sprites based on rarity
-        switch (rarity)
-        {
-            case Rarity.Common:
-                spriteRenderer.color = Color.white;
-                break;
-            case Rarity.Rare:
-                spriteRenderer.color = Color.blue;
-                break;
-            case Rarity.Epic:
-                spriteRenderer.color = Color.magenta;
-                break;
-            case Rarity.Legendary:
-                spriteRenderer.color = Color.yellow;
-                break;
-        }
+        // Removed - using cleaner logging in spawner
     }
+
+    private void LogSpawnInfo()
+    {
+        // Removed - using cleaner logging in spawner
+    }
+
+    #endregion
 }
 
 // Interface for objects that can take damage

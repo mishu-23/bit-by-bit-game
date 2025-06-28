@@ -6774,8 +6774,8 @@ MonoBehaviour:
     followSpeed: 5
     offset: {x: 0, y: 0, z: -10}
     enableXBoundaries: 1
-    minX: -25
-    maxX: 25
+    minX: -23
+    maxX: 23
     enableRateLimiting: 0
     updateInterval: 0.01
 --- !u!1 &1056455434
@@ -6927,6 +6927,7 @@ GameObject:
   - component: {fileID: 1119771334}
   - component: {fileID: 1119771333}
   - component: {fileID: 1119771332}
+  - component: {fileID: 1119771335}
   m_Layer: 3
   m_Name: Player
   m_TagString: Player
@@ -7100,11 +7101,9 @@ MonoBehaviour:
   minX: -41
   maxX: 40
   enableRolling: 1
-  rollTorque: 40
+  rollTorque: 80
   maxRollSpeed: 720
-  rollDamping: 0.8
-  stopThreshold: 50
-  rollStaminaDepleteRate: 0.5
+  rollStaminaDepleteRate: 0.1
   rollStaminaRecoverRate: 0.2
   rollStaminaMax: 1
   rollStaminaCooldownTime: 5
@@ -7147,6 +7146,23 @@ Grid:
   m_CellGap: {x: 0, y: 0, z: 0}
   m_CellLayout: 0
   m_CellSwizzle: 0
+--- !u!114 &1119771335
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1119771326}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 89e0265e2aceb9944bfcec7566b4fc8d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  playerController: {fileID: 1119771332}
+  debugText: {fileID: 0}
+  enableRealTimeDisplay: 0
+  updateInterval: 1
+  lastUpdateTime: 0
 --- !u!1001 &1161870725
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -7230,6 +7246,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1195285481}
   - component: {fileID: 1195285482}
+  - component: {fileID: 1195285483}
   m_Layer: 3
   m_Name: ProjectileSpawner
   m_TagString: Untagged
@@ -7268,10 +7285,29 @@ MonoBehaviour:
   rareProjectilePrefab: {fileID: 8168839296318481847, guid: 4e3758b3782ed8342a641afdf7f2ceab, type: 3}
   epicProjectilePrefab: {fileID: 8168839296318481847, guid: ab9e5c9b9021f98429be6a71a7c06cab, type: 3}
   legendaryProjectilePrefab: {fileID: 8168839296318481847, guid: 5fa24a860a33cb24f910ea99bcb85100, type: 3}
+  useRaritySystem: 1
+  raritySystem: {fileID: 0}
   spawnPoint: {fileID: 0}
   spawnOffset: 1
   characterRenderer: {fileID: 0}
   showDebugInfo: 0
+--- !u!114 &1195285483
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1195285480}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 89e0265e2aceb9944bfcec7566b4fc8d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  playerController: {fileID: 0}
+  debugText: {fileID: 0}
+  enableRealTimeDisplay: 0
+  updateInterval: 1
+  lastUpdateTime: 0
 --- !u!1 &1251377145
 GameObject:
   m_ObjectHideFlags: 0

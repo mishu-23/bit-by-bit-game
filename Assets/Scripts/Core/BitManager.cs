@@ -69,23 +69,34 @@ public class BitManager : MonoBehaviour
     
     public Bit GetRandomBit()
     {
-        // Create an array of possible bit types
-        System.Array rarityValues = System.Enum.GetValues(typeof(Rarity));
-        Rarity randomRarity = (Rarity)rarityValues.GetValue(Random.Range(0, rarityValues.Length));
-        
-        // Core bits are always Common, Power bits can be any other rarity
+        // Define weighted probabilities for bit drops
+        float randomValue = Random.value;
+        Rarity selectedRarity;
         BitType bitType;
-        if (randomRarity == Rarity.Common)
+        
+        if (randomValue < 0.10f)        // 10% chance - Core bits
         {
+            selectedRarity = Rarity.Common;
             bitType = BitType.CoreBit;
         }
-        else
+        else if (randomValue < 0.50f)   // 40% chance - Rare PowerBits (10% + 40% = 50%)
         {
+            selectedRarity = Rarity.Rare;
+            bitType = BitType.PowerBit;
+        }
+        else if (randomValue < 0.80f)   // 30% chance - Epic PowerBits (50% + 30% = 80%)
+        {
+            selectedRarity = Rarity.Epic;
+            bitType = BitType.PowerBit;
+        }
+        else                            // 20% chance - Legendary PowerBits (80% + 20% = 100%)
+        {
+            selectedRarity = Rarity.Legendary;
             bitType = BitType.PowerBit;
         }
         
         // Create a random bit using the factory method
-        string bitName = $"{randomRarity} {bitType}";
+        string bitName = $"{selectedRarity} {bitType}";
         
         // Get appropriate stats for the rarity
         int damage = 0;
@@ -93,7 +104,7 @@ public class BitManager : MonoBehaviour
         
         if (bitType == BitType.PowerBit)
         {
-            damage = randomRarity switch
+            damage = selectedRarity switch
             {
                 Rarity.Rare => 2,
                 Rarity.Epic => 4,
@@ -101,7 +112,7 @@ public class BitManager : MonoBehaviour
                 _ => 0
             };
             
-            shootingProbability = randomRarity switch
+            shootingProbability = selectedRarity switch
             {
                 Rarity.Rare => Random.Range(0.6f, 0.8f),
                 Rarity.Epic => Random.Range(0.4f, 0.5f),
@@ -110,6 +121,6 @@ public class BitManager : MonoBehaviour
             };
         }
         
-        return Bit.CreateBit(bitName, bitType, randomRarity, damage, shootingProbability);
+        return Bit.CreateBit(bitName, bitType, selectedRarity, damage, shootingProbability);
     }
 } 

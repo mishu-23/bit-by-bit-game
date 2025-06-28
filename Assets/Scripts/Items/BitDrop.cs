@@ -86,6 +86,23 @@ namespace BitByBit.Items
             UpdateVisualRepresentation();
         }
         
+        private void OnEnable()
+        {
+            // Reinitialize when component is re-enabled (e.g., after being dropped by entity)
+            if (gameObject.scene.isLoaded)
+            {
+                InitializePlayerReference();
+                UpdateVisualRepresentation();
+                
+                // Reset collection state
+                isBeingCollected = false;
+                playerInRange = false;
+                ShowCollectionPrompt(false);
+                
+                Debug.Log($"BitDrop '{name}' - Component re-enabled, reinitialized with bit: {bitData?.BitName ?? "NULL"}");
+            }
+        }
+        
         private void Update()
         {
             if (!isBeingCollected)
@@ -127,7 +144,9 @@ namespace BitByBit.Items
         
         private void ValidateConfiguration()
         {
-            if (bitData == null && gameObject.scene.isLoaded)
+            // Only validate if the object is fully loaded and not during instantiation
+            // Skip validation if we're likely in the middle of setup (component just instantiated)
+            if (bitData == null && gameObject.scene.isLoaded && Time.time > 0f && Time.timeSinceLevelLoad > 0.1f)
             {
                 Debug.LogWarning($"BitDrop '{name}' has no bit data assigned!", this);
             }
@@ -346,7 +365,13 @@ namespace BitByBit.Items
                 return null;
             }
             
-            Debug.Log($"Creating BitDrop for bit: {bit?.BitName ?? "NULL"} ({bit?.BitType ?? BitType.PowerBit}, {bit?.Rarity ?? Rarity.Common})");
+            if (bit == null)
+            {
+                Debug.LogError("Cannot create BitDrop with null bit data!");
+                return null;
+            }
+            
+            Debug.Log($"Creating BitDrop for bit: {bit.BitName} ({bit.BitType}, {bit.Rarity})");
             
             GameObject instance = Instantiate(prefabReference, position, rotation);
             BitDrop bitDropComponent = instance.GetComponent<BitDrop>();
@@ -358,9 +383,10 @@ namespace BitByBit.Items
                 return null;
             }
             
+            // Set bit data immediately to avoid validation warnings
             bitDropComponent.SetBitData(bit);
             
-            Debug.Log($"BitDrop created successfully with bit: {bit?.BitName ?? "NULL"}");
+            Debug.Log($"BitDrop created successfully with bit: {bit.BitName}");
             return bitDropComponent;
         }
         

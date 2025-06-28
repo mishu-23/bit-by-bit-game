@@ -16,4 +16,4 @@ MonoBehaviour:
   bitType: 1
   rarity: 3
   damage: 8
-  shootingProbability: 0.25
+  shootingProbability: 0.215

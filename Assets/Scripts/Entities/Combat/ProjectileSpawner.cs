@@ -3,11 +3,17 @@ using System.Collections.Generic;
 
 public class ProjectileSpawner : MonoBehaviour
 {
+    #region Serialized Fields
+    
     [Header("Projectile Prefabs")]
     [SerializeField] private GameObject defaultProjectilePrefab;
     [SerializeField] private GameObject rareProjectilePrefab;
     [SerializeField] private GameObject epicProjectilePrefab;
     [SerializeField] private GameObject legendaryProjectilePrefab;
+    
+    [Header("Rarity System")]
+    [SerializeField] private bool useRaritySystem = true;
+    [SerializeField] private ProjectileRaritySystem raritySystem;
     
     [Header("Spawn Settings")]
     [SerializeField] private Transform spawnPoint;
@@ -15,119 +21,267 @@ public class ProjectileSpawner : MonoBehaviour
     [SerializeField] private PowerBitCharacterRenderer characterRenderer;
     
     [Header("Debug")]
-    [SerializeField] private bool showDebugInfo = false;
+    [SerializeField] private bool showDebugInfo = true;
+    
+    #endregion
+
+    #region Private Fields
     
     private Camera mainCamera;
     private List<Projectile> activeProjectiles = new List<Projectile>();
     
+    #endregion
+
+    #region Unity Lifecycle
+
     private void Awake()
+    {
+        InitializeCamera();
+        InitializeSpawnPoint();
+        FindCharacterRenderer();
+        InitializeRaritySystem();
+        SetupSpawnPosition();
+    }
+
+    private void Update()
+    {
+        CleanupDestroyedProjectiles();
+    }
+
+    #endregion
+
+    #region Initialization
+
+    private void InitializeCamera()
     {
         mainCamera = Camera.main;
         if (mainCamera == null)
         {
             Debug.LogError("No main camera found! ProjectileSpawner needs a camera for mouse aiming.");
         }
-        
+    }
+
+    private void InitializeSpawnPoint()
+    {
         if (spawnPoint == null)
         {
             spawnPoint = transform;
         }
-        
-        // Auto-find character renderer if not assigned
+    }
+
+    private void FindCharacterRenderer()
+    {
         if (characterRenderer == null)
         {
             characterRenderer = GetComponentInParent<PowerBitCharacterRenderer>();
         }
-        
-        // Automatically position spawn point based on grid size
+    }
+
+    private void InitializeRaritySystem()
+    {
+        if (raritySystem == null)
+        {
+            raritySystem = GetComponent<ProjectileRaritySystem>();
+            if (raritySystem == null && useRaritySystem)
+            {
+                // Create rarity system component if it doesn't exist
+                raritySystem = gameObject.AddComponent<ProjectileRaritySystem>();
+                LogDebugInfo("Created ProjectileRaritySystem component automatically");
+            }
+        }
+    }
+
+
+
+    private void SetupSpawnPosition()
+    {
         UpdateSpawnPointPosition();
     }
-    
-    private void Update()
-    {
-        // Clean up destroyed projectiles from the list
-        activeProjectiles.RemoveAll(p => p == null);
-    }
-    
+
+    #endregion
+
+    #region Aiming System
+
     public Vector2 GetAimingDirection()
     {
-        if (mainCamera == null) return Vector2.right; // Default to right if no camera
+        if (mainCamera == null) return Vector2.right;
         
-        // Get mouse position in world space
+        Vector3 mouseWorldPos = GetMouseWorldPosition();
+        Vector2 direction = CalculateAimingDirection(mouseWorldPos);
+        
+        return ClampToUpperArc(direction);
+    }
+
+    public float GetAimingAngle()
+    {
+        Vector2 direction = GetAimingDirection();
+        return Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
+    }
+
+    public bool IsValidAimingDirection()
+    {
+        Vector2 direction = GetAimingDirection();
+        return direction.y >= 0; // Only allow shooting in upper arc
+    }
+
+    private Vector3 GetMouseWorldPosition()
+    {
         Vector3 mouseWorldPos = mainCamera.ScreenToWorldPoint(Input.mousePosition);
         mouseWorldPos.z = 0f;
-        
-        // Calculate direction from player to mouse
-        Vector2 direction = (mouseWorldPos - spawnPoint.position).normalized;
-        
+        return mouseWorldPos;
+    }
+
+    private Vector2 CalculateAimingDirection(Vector3 mouseWorldPos)
+    {
+        return (mouseWorldPos - spawnPoint.position).normalized;
+    }
+
+    private Vector2 ClampToUpperArc(Vector2 direction)
+    {
         // Clamp to upper arc (90° to 270°): only allow if direction.y >= 0
         if (direction.y < 0)
         {
             direction.y = 0;
             direction = direction.normalized;
         }
-        
         return direction;
     }
-    
-    public Projectile SpawnProjectile(Rarity rarity = Rarity.Common, int damage = 1, string projectileType = "Default")
+
+    #endregion
+
+    #region Projectile Spawning
+
+    public Projectile SpawnProjectile()
     {
-        GameObject prefabToSpawn = GetProjectilePrefab(rarity);
-        if (prefabToSpawn == null)
+        Rarity projectileRarity = DetermineProjectileRarity();
+        GameObject prefabToUse = GetProjectilePrefabForRarity(projectileRarity);
+        int damage = GetDamageForRarity(projectileRarity);
+        
+        LogDebugInfo($"--- PROJECTILE: Spawning {projectileRarity} projectile (Damage: {damage})");
+        
+        if (prefabToUse == null)
         {
-            Debug.LogError($"No projectile prefab found for rarity: {rarity}");
+            Debug.LogError($"No projectile prefab assigned for rarity: {projectileRarity}!");
             return null;
         }
         
-        // Calculate spawn position
-        Vector2 direction = GetAimingDirection();
-        Vector3 spawnPosition = spawnPoint.position + (Vector3)(direction * spawnOffset);
+        Vector3 spawnPosition = CalculateSpawnPosition();
+        GameObject projectileObj = InstantiateProjectile(prefabToUse, spawnPosition);
         
-        // Spawn the projectile
-        GameObject projectileObj = Instantiate(prefabToSpawn, spawnPosition, Quaternion.identity);
+        return SetupProjectile(projectileObj, damage, projectileRarity);
+    }
+
+    private Vector3 CalculateSpawnPosition()
+    {
+        Vector2 direction = GetAimingDirection();
+        return spawnPoint.position + (Vector3)(direction * spawnOffset);
+    }
+
+    private GameObject InstantiateProjectile(GameObject prefab, Vector3 position)
+    {
+        return Instantiate(prefab, position, Quaternion.identity);
+    }
+
+    private Projectile SetupProjectile(GameObject projectileObj, int damage, Rarity rarity)
+    {
         Projectile projectile = projectileObj.GetComponent<Projectile>();
         
         if (projectile != null)
         {
-            // Initialize the projectile
-            projectile.Initialize(direction, damage, rarity, projectileType);
-            projectile.SetAppearance(rarity);
+            LogDebugInfo($"--- PROJECTILE: Before Init Damage={projectile.Damage}");
             
-            // Add to active projectiles list
-            activeProjectiles.Add(projectile);
+            InitializeProjectile(projectile, damage, rarity);
             
-            if (showDebugInfo)
-            {
-                Debug.Log($"Spawned {rarity} projectile: {projectileType} (Damage: {damage}) at {spawnPosition}");
-            }
+            LogDebugInfo($"--- PROJECTILE: Final Damage={projectile.Damage}, Rarity={projectile.Rarity}");
+            
+            RegisterProjectile(projectile);
         }
         else
         {
-            Debug.LogError("Spawned projectile object doesn't have Projectile component!");
-            Destroy(projectileObj);
+            HandleInvalidProjectile(projectileObj);
         }
         
         return projectile;
     }
-    
-    private GameObject GetProjectilePrefab(Rarity rarity)
+
+    private void InitializeProjectile(Projectile projectile, int damage, Rarity rarity)
     {
-        switch (rarity)
-        {
-            case Rarity.Common:
-                return defaultProjectilePrefab;
-            case Rarity.Rare:
-                return rareProjectilePrefab ?? defaultProjectilePrefab;
-            case Rarity.Epic:
-                return epicProjectilePrefab ?? rareProjectilePrefab ?? defaultProjectilePrefab;
-            case Rarity.Legendary:
-                return legendaryProjectilePrefab ?? epicProjectilePrefab ?? rareProjectilePrefab ?? defaultProjectilePrefab;
-            default:
-                return defaultProjectilePrefab;
-        }
+        Vector2 direction = GetAimingDirection();
+        projectile.Initialize(direction, damage, rarity);
     }
-    
+
+    private void RegisterProjectile(Projectile projectile)
+    {
+        activeProjectiles.Add(projectile);
+    }
+
+    private void HandleInvalidProjectile(GameObject projectileObj)
+    {
+        Debug.LogError("Spawned projectile object doesn't have Projectile component!");
+        Destroy(projectileObj);
+    }
+
+    #endregion
+
+    #region Rarity System
+
+    private Rarity DetermineProjectileRarity()
+    {
+        if (!useRaritySystem || raritySystem == null)
+        {
+            return Rarity.Common; // Default to Common if rarity system is disabled
+        }
+        
+        return raritySystem.DetermineProjectileRarity();
+    }
+
+    private GameObject GetProjectilePrefabForRarity(Rarity rarity)
+    {
+        return rarity switch
+        {
+            Rarity.Legendary => legendaryProjectilePrefab ?? defaultProjectilePrefab,
+            Rarity.Epic => epicProjectilePrefab ?? defaultProjectilePrefab,
+            Rarity.Rare => rareProjectilePrefab ?? defaultProjectilePrefab,
+            Rarity.Common => defaultProjectilePrefab,
+            _ => defaultProjectilePrefab
+        };
+    }
+
+    private int GetDamageForRarity(Rarity rarity)
+    {
+        return rarity switch
+        {
+            Rarity.Legendary => 8,
+            Rarity.Epic => 4,
+            Rarity.Rare => 2,
+            Rarity.Common => 1,
+            _ => 1
+        };
+    }
+
+    #endregion
+
+    #region Projectile Management
+
     public void ClearAllProjectiles()
+    {
+        DestroyAllActiveProjectiles();
+        ClearProjectileList();
+    }
+
+    public int GetActiveProjectileCount()
+    {
+        return activeProjectiles.Count;
+    }
+
+
+
+    private void CleanupDestroyedProjectiles()
+    {
+        activeProjectiles.RemoveAll(p => p == null);
+    }
+
+    private void DestroyAllActiveProjectiles()
     {
         foreach (var projectile in activeProjectiles)
         {
@@ -136,30 +290,22 @@ public class ProjectileSpawner : MonoBehaviour
                 Destroy(projectile.gameObject);
             }
         }
+    }
+
+    private void ClearProjectileList()
+    {
         activeProjectiles.Clear();
     }
-    
-    public int GetActiveProjectileCount()
+
+    #endregion
+
+    #region Spawn Point Management
+
+    public void RefreshSpawnPointPosition()
     {
-        return activeProjectiles.Count;
+        UpdateSpawnPointPosition();
     }
-    
-    // Public method to get aiming angle for UI or other systems
-    public float GetAimingAngle()
-    {
-        Vector2 direction = GetAimingDirection();
-        return Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
-    }
-    
-    // Public method to check if aiming direction is valid (within upper arc)
-    public bool IsValidAimingDirection()
-    {
-        Vector2 direction = GetAimingDirection();
-        // Only allow shooting if aiming in the upper arc (direction.y >= 0)
-        return direction.y >= 0;
-    }
-    
-    // Update spawn point position based on grid size
+
     private void UpdateSpawnPointPosition()
     {
         if (characterRenderer == null) return;
@@ -167,48 +313,85 @@ public class ProjectileSpawner : MonoBehaviour
         int gridSize = characterRenderer.GetGridSize();
         if (gridSize <= 0) return;
         
-        // Calculate center position: gridSize / 2
+        Vector3 centerPosition = CalculateCenterPosition(gridSize);
+        SetSpawnPointPosition(centerPosition);
+        
+        LogSpawnPointUpdate(centerPosition, gridSize);
+    }
+
+    private Vector3 CalculateCenterPosition(int gridSize)
+    {
         float centerPos = gridSize / 2f;
-        Vector3 newPosition = new Vector3(centerPos, centerPos, 0f);
-        
-        // Set local position relative to the character renderer
-        spawnPoint.localPosition = newPosition;
-        
+        return new Vector3(centerPos, centerPos, 0f);
+    }
+
+    private void SetSpawnPointPosition(Vector3 position)
+    {
+        spawnPoint.localPosition = position;
+    }
+
+    #endregion
+
+    #region Debug and Logging
+
+    private void LogSpawnPointUpdate(Vector3 position, int gridSize)
+    {
         if (showDebugInfo)
         {
-            Debug.Log($"Updated spawn point local position to ({centerPos}, {centerPos}) for grid size {gridSize}");
+            Debug.Log($"Updated spawn point local position to ({position.x}, {position.y}) for grid size {gridSize}");
         }
     }
-    
-    // Public method to update position (call this when grid size changes)
-    public void RefreshSpawnPointPosition()
+
+    private void LogDebugInfo(string message)
     {
-        UpdateSpawnPointPosition();
+        if (showDebugInfo)
+        {
+            Debug.Log($"ProjectileSpawner: {message}");
+        }
     }
-    
+
+    #endregion
+
+    #region Gizmos and Visualization
+
     private void OnDrawGizmos()
     {
         if (spawnPoint == null) return;
         
-        // Draw spawn point
-        Gizmos.color = Color.green;
-        Gizmos.DrawWireSphere(spawnPoint.position, 0.1f);
+        DrawSpawnPoint();
         
-        // Draw aiming direction
         if (Application.isPlaying)
         {
-            Vector2 direction = GetAimingDirection();
-            Gizmos.color = Color.red;
-            Gizmos.DrawRay(spawnPoint.position, direction * 2f);
-            
-            // Draw 180° arc from 12 to 6 o'clock (upper arc)
-            Gizmos.color = Color.yellow;
-            for (int i = 0; i <= 18; i++) // 180 degrees in 10-degree increments
-            {
-                float angle = i * 10f * Mathf.Deg2Rad; // Start from 0° (12 o'clock) to 180° (6 o'clock)
-                Vector2 arcPoint = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
-                Gizmos.DrawWireSphere(spawnPoint.position + (Vector3)(arcPoint * 1.5f), 0.05f);
-            }
+            DrawAimingDirection();
+            DrawShootingArc();
         }
     }
+
+    private void DrawSpawnPoint()
+    {
+        Gizmos.color = Color.green;
+        Gizmos.DrawWireSphere(spawnPoint.position, 0.1f);
+    }
+
+    private void DrawAimingDirection()
+    {
+        Vector2 direction = GetAimingDirection();
+        Gizmos.color = Color.red;
+        Gizmos.DrawRay(spawnPoint.position, direction * 2f);
+    }
+
+    private void DrawShootingArc()
+    {
+        Gizmos.color = Color.yellow;
+        
+        // Draw 180° arc from 12 to 6 o'clock (upper arc)
+        for (int i = 0; i <= 18; i++) // 180 degrees in 10-degree increments
+        {
+            float angle = i * 10f * Mathf.Deg2Rad; // Start from 0° (12 o'clock) to 180° (6 o'clock)
+            Vector2 arcPoint = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
+            Gizmos.DrawWireSphere(spawnPoint.position + (Vector3)(arcPoint * 1.5f), 0.05f);
+        }
+    }
+
+    #endregion
 } 

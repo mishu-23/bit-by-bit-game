@@ -64,11 +64,11 @@ namespace BitByBit.Items
         }
     }
 
-    public class BitCollectionManager : MonoBehaviour
-    {
+public class BitCollectionManager : MonoBehaviour
+{
         #region Configuration
-        
-        [Header("References")]
+    
+    [Header("References")]
         [SerializeField] private PowerBitPlayerController playerController;
         [SerializeField] private GameObject bitDropPrefab;
         
@@ -91,33 +91,33 @@ namespace BitByBit.Items
         #region Singleton
         
         public static BitCollectionManager Instance { get; private set; }
-        
-        private void Awake()
-        {
+    
+    private void Awake()
+    {
             InitializeSingleton();
             InitializeServices();
             InitializeCache();
         }
         
         private void InitializeSingleton()
+    {
+        if (Instance == null)
         {
-            if (Instance == null)
-            {
-                Instance = this;
-                DontDestroyOnLoad(gameObject);
-            }
-            else
-            {
-                Destroy(gameObject);
-            }
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
         }
+        else
+        {
+            Destroy(gameObject);
+        }
+    }
         
         #endregion
         
         #region Initialization
-        
-        private void Start()
-        {
+    
+    private void Start()
+    {
             InitializeComponents();
             ConfigureBitDropPrefab();
         }
@@ -202,7 +202,7 @@ namespace BitByBit.Items
             if (!emptyPosition.HasValue)
             {
                 Debug.LogError("BitCollectionManager: No empty position found!");
-                return false;
+            return false;
             }
 
             return ExecuteCollection(currentBuild, emptyPosition.Value, bitData);
@@ -245,9 +245,9 @@ namespace BitByBit.Items
             if (build?.cells == null)
             {
                 Debug.Log("BitCollectionManager: No build data to clean up");
-                return true;
-            }
-            
+        return true;
+    }
+    
             Debug.Log($"BitCollectionManager: Before cleanup - {build.cells.Count} total bits");
             
             // Group cells by position to identify duplicates
@@ -390,10 +390,10 @@ namespace BitByBit.Items
         {
             var emptyPositions = new List<Vector2Int>();
             
-            for (int y = 0; y < build.gridSize; y++)
+        for (int y = 0; y < build.gridSize; y++)
+        {
+            for (int x = 0; x < build.gridSize; x++)
             {
-                for (int x = 0; x < build.gridSize; x++)
-                {
                     var position = new Vector2Int(x, y);
                     if (!occupiedPositions.Contains(position))
                     {

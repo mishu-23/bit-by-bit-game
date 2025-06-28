@@ -12,7 +12,10 @@ GameObject:
   - component: {fileID: 7101114351165795353}
   - component: {fileID: 6341033649830398697}
   - component: {fileID: 2103457998837090044}
-  - component: {fileID: 7849938093549157807}
+  - component: {fileID: -4085910647204085140}
+  - component: {fileID: -2573246546589411421}
+  - component: {fileID: 3305441728818546681}
+  - component: {fileID: -532399108766054026}
   m_Layer: 6
   m_Name: CrawlingEntity
   m_TagString: Untagged
@@ -163,7 +166,7 @@ Rigidbody2D:
   m_SleepingMode: 1
   m_CollisionDetection: 1
   m_Constraints: 4
---- !u!114 &7849938093549157807
+--- !u!114 &-4085910647204085140
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -172,26 +175,80 @@ MonoBehaviour:
   m_GameObject: {fileID: 9000817763735303982}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7eaf4b02b7871cb4daab0da9825c3b80, type: 3}
+  m_Script: {fileID: 11500000, guid: 582d3141221a7f24fa27283b763c2810, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  enableDebugLogging: 0
-  playerTarget: {fileID: 0}
   moveForce: 8
   maxSpeed: 4
   groundY: 0.5
-  detectionRange: 30
-  minFollowDistance: 1
+  fleeSpeed: 6
   accelerationMultiplier: 2
   initialBoostForce: 12
   accelerationTime: 0.5
-  maxHealth: 15
-  currentHealth: 0
-  isFollowing: 1
-  followDelay: 0.5
-  fleeDistance: 8
-  fleeSpeed: 6
-  playerOffset: -1
-  bitDropOffset: {x: 0, y: 3, z: 0}
+--- !u!114 &-2573246546589411421
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9000817763735303982}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a3ed7f4519870b444ad5ee5886235f0e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  maxHealth: 8
+  OnHealthChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  OnDeath:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!114 &3305441728818546681
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9000817763735303982}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 028b04e441167e94ca0568eb26874365, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  bitDropPrefab: {fileID: 7894677405706821340, guid: 009100f8d98020746b957f8512d981d4, type: 3}
+  bitDropOffset: {x: 0, y: 1.5, z: 0}
   bitDropBobAmount: 0.2
-  bitDropBobSpeed: 4
+  bitDropBobSpeed: 2
+  OnBitAttached:
+    m_PersistentCalls:
+      m_Calls: []
+  OnBitDropped:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!114 &-532399108766054026
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9000817763735303982}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7919226fef394594f84fbdf3e4b394e4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  enableDebugLogging: 1
+  chosenMechanic: 2
+  detectionRange: 30
+  minFollowDistance: 1
+  followDelay: 0.5
+  depositDetectionRange: 80
+  depositApproachDistance: 2
+  gathererDetectionRange: 15
+  gathererTakeDistance: 2
+  gathererMinFollowDistance: 0.5
+  gathererSearchInterval: 2
+  gathererCarryOffset: {x: 0, y: 1.2, z: 0}
+  fleeSpeed: 6
+  fleeDistance: 8

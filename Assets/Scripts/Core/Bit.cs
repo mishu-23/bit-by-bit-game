@@ -81,6 +81,7 @@ public class Bit : ScriptableObject
             // PowerBit sprites based on rarity
             return rarity switch
             {
+                Rarity.Common => BitManager.Instance.coreBitSprite, // Common PowerBits use CoreBit sprite (shouldn't normally exist)
                 Rarity.Rare => BitManager.Instance.rarePowerBitSprite,
                 Rarity.Epic => BitManager.Instance.epicPowerBitSprite,
                 Rarity.Legendary => BitManager.Instance.legendaryPowerBitSprite,
@@ -162,12 +163,7 @@ public class Bit : ScriptableObject
             if (bitType == BitType.PowerBit)
             {
                 damage = stats.damage;
-                // Keep shooting probability within valid range for this rarity
-                if (shootingProbability < stats.minShootingProbability || 
-                    shootingProbability > stats.maxShootingProbability)
-                {
-                    shootingProbability = (stats.minShootingProbability + stats.maxShootingProbability) / 2f;
-                }
+                // Shooting probability is now freely editable - no automatic override
             }
             else
             {

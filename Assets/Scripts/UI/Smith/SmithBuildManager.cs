@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System;
 using System.Linq;
 using TMPro;
+using BitByBit.Core;
+using BitByBit.Items;
 
 [Serializable]
 public class SmithGridStateData
@@ -161,8 +163,8 @@ public class SmithBuildManager : MonoBehaviour
         // Only process manual input when game is paused and Smith menu is open
         if (PauseManager.Instance != null && PauseManager.Instance.IsPaused)
         {
-            GameObject smithCanvas = GameObject.Find("SmithCanvas");
-            if (smithCanvas != null && smithCanvas.activeInHierarchy)
+            // Use GameReferences instead of GameObject.Find for better performance
+            if (GameReferences.Instance != null && GameReferences.Instance.IsSmithCanvasActive())
             {
                 // Only process grid size changes when Smith menu is open
                 if (Input.GetKeyDown(KeyCode.Alpha1))
@@ -446,6 +448,13 @@ public class SmithBuildManager : MonoBehaviour
         {
             Debug.LogWarning("PlayerController not assigned! Cannot load build into character.");
         }
+        
+        // CRITICAL: Invalidate BitCollectionManager cache after saving build
+        if (BitCollectionManager.Instance != null)
+        {
+            BitCollectionManager.Instance.InvalidateCache();
+            Debug.Log("BitCollectionManager cache invalidated after saving build");
+        }
     }
 
     public void CloseSmithMenu()
@@ -461,11 +470,10 @@ public class SmithBuildManager : MonoBehaviour
         // Revert inventory to original state
         RevertInventoryToOriginalState();
         
-        // Find and hide the SmithCanvas
-        GameObject smithCanvas = GameObject.Find("SmithCanvas");
-        if (smithCanvas != null)
+        // Hide the SmithCanvas using GameReferences
+        if (GameReferences.Instance != null)
         {
-            smithCanvas.SetActive(false);
+            GameReferences.Instance.SetSmithCanvasActive(false);
         }
         
         // Resume the game when closing smith menu
@@ -732,18 +740,22 @@ public class SmithBuildManager : MonoBehaviour
     // Find the inventory content area
     private Transform FindInventoryContent()
     {
-        // Look for the inventory content in the scene
-        Transform inventoryContent = GameObject.Find("InventoryContent")?.transform;
-        if (inventoryContent == null)
+        // Use GameReferences for better performance
+        if (GameReferences.Instance != null && GameReferences.Instance.InventoryContent != null)
         {
-            // Alternative: look for SmithInventoryTestPopulator and get its inventoryContent
-            SmithInventoryTestPopulator populator = FindObjectOfType<SmithInventoryTestPopulator>();
-            if (populator != null)
-            {
-                inventoryContent = populator.inventoryContent;
-            }
+            return GameReferences.Instance.InventoryContent;
         }
-        return inventoryContent;
+        
+        // Fallback: look for SmithInventoryTestPopulator if GameReferences fails
+        SmithInventoryTestPopulator populator = FindObjectOfType<SmithInventoryTestPopulator>();
+        if (populator != null && populator.inventoryContent != null)
+        {
+            return populator.inventoryContent;
+        }
+        
+        // Last resort fallback (should not be needed if GameReferences is set up correctly)
+        Debug.LogWarning("SmithBuildManager: Could not find InventoryContent via GameReferences. Please ensure GameReferences is properly configured.");
+        return null;
     }
     
     private void LoadBuildIntoGrid(SmithGridStateData gridState)
@@ -1069,6 +1081,13 @@ public class SmithBuildManager : MonoBehaviour
         else
         {
             Debug.LogWarning("PlayerController not assigned! Cannot apply upgraded build to character.");
+        }
+        
+        // CRITICAL: Invalidate BitCollectionManager cache after grid upgrade
+        if (BitCollectionManager.Instance != null)
+        {
+            BitCollectionManager.Instance.InvalidateCache();
+            Debug.Log("BitCollectionManager cache invalidated after grid upgrade");
         }
     }
 } 

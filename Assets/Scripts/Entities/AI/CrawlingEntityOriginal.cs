@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections;
+using BitByBit.Core;
 
 public class CrawlingEntityOriginal : MonoBehaviour, IDamageable
 {
@@ -149,34 +150,13 @@ public class CrawlingEntityOriginal : MonoBehaviour, IDamageable
         // Find player if not assigned
         if (playerTarget == null)
         {
-            GameObject player = GameObject.FindGameObjectWithTag("Player");
-            if (player != null)
-            {
-                playerTarget = player.transform;
-                DebugLog($"CrawlingEntity {gameObject.name} found player: {player.name}");
-            }
-            else
-            {
-                DebugLogError($"CrawlingEntity {gameObject.name} couldn't find player with tag 'Player'!");
-            }
+            InitializePlayerTarget();
         }
         
         // Find deposit if needed for deposit stealing mechanic
         if (chosenMechanic == StealMechanic.StealFromDeposit)
         {
-            GameObject deposit = GameObject.Find("Deposit");
-            if (deposit != null)
-            {
-                depositTarget = deposit.transform;
-                DebugLog($"CrawlingEntity {gameObject.name} found deposit at: {depositTarget.position}");
-                // Start moving to deposit immediately
-                StartMovingToDeposit();
-            }
-            else
-            {
-                DebugLogWarning($"CrawlingEntity {gameObject.name} couldn't find deposit! Falling back to player stealing.");
-                chosenMechanic = StealMechanic.StealFromPlayer;
-            }
+            InitializeDepositTarget();
         }
         
         // Find gatherer for following mechanic
@@ -194,6 +174,61 @@ public class CrawlingEntityOriginal : MonoBehaviour, IDamageable
         
         // Don't create attached bit drop initially - will steal one when fleeing
         // CreateAttachedBitDrop();
+    }
+    
+    private void InitializePlayerTarget()
+    {
+        // Use GameReferences for better performance
+        if (GameReferences.Instance != null && GameReferences.Instance.Player != null)
+        {
+            playerTarget = GameReferences.Instance.Player;
+            DebugLog($"CrawlingEntity {gameObject.name} found player via GameReferences: {playerTarget.name}");
+        }
+        else
+        {
+            // Fallback: try to find player with tag if GameReferences fails
+            GameObject player = GameObject.FindGameObjectWithTag("Player");
+            if (player != null)
+            {
+                playerTarget = player.transform;
+                DebugLog($"CrawlingEntity {gameObject.name} found player via fallback: {player.name}");
+                DebugLogWarning("CrawlingEntity: Found player via fallback method. Please ensure GameReferences is properly configured.");
+            }
+            else
+            {
+                DebugLogError($"CrawlingEntity {gameObject.name} couldn't find player with tag 'Player'!");
+            }
+        }
+    }
+    
+    private void InitializeDepositTarget()
+    {
+        // Use GameReferences for better performance
+        if (GameReferences.Instance != null && GameReferences.Instance.Deposit != null)
+        {
+            depositTarget = GameReferences.Instance.Deposit.transform;
+            DebugLog($"CrawlingEntity {gameObject.name} found deposit via GameReferences at: {depositTarget.position}");
+            // Start moving to deposit immediately
+            StartMovingToDeposit();
+        }
+        else
+        {
+            // Fallback: try to find deposit if GameReferences fails
+            GameObject deposit = GameObject.Find("Deposit");
+            if (deposit != null)
+            {
+                depositTarget = deposit.transform;
+                DebugLog($"CrawlingEntity {gameObject.name} found deposit via fallback at: {depositTarget.position}");
+                DebugLogWarning("CrawlingEntity: Found deposit via fallback method. Please ensure GameReferences is properly configured.");
+                // Start moving to deposit immediately
+                StartMovingToDeposit();
+            }
+            else
+            {
+                DebugLogWarning($"CrawlingEntity {gameObject.name} couldn't find deposit! Falling back to player stealing.");
+                chosenMechanic = StealMechanic.StealFromPlayer;
+            }
+        }
     }
     
     private void CreateAttachedBitDrop()

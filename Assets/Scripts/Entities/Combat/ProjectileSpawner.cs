@@ -3,8 +3,6 @@ using System.Collections.Generic;
 
 public class ProjectileSpawner : MonoBehaviour
 {
-    #region Serialized Fields
-    
     [Header("Projectile Prefabs")]
     [SerializeField] private GameObject defaultProjectilePrefab;
     [SerializeField] private GameObject rareProjectilePrefab;
@@ -22,17 +20,9 @@ public class ProjectileSpawner : MonoBehaviour
     
     [Header("Debug")]
     [SerializeField] private bool showDebugInfo = true;
-    
-    #endregion
 
-    #region Private Fields
-    
     private Camera mainCamera;
     private List<Projectile> activeProjectiles = new List<Projectile>();
-    
-    #endregion
-
-    #region Unity Lifecycle
 
     private void Awake()
     {
@@ -47,10 +37,6 @@ public class ProjectileSpawner : MonoBehaviour
     {
         CleanupDestroyedProjectiles();
     }
-
-    #endregion
-
-    #region Initialization
 
     private void InitializeCamera()
     {
@@ -91,16 +77,10 @@ public class ProjectileSpawner : MonoBehaviour
         }
     }
 
-
-
     private void SetupSpawnPosition()
     {
         UpdateSpawnPointPosition();
     }
-
-    #endregion
-
-    #region Aiming System
 
     public Vector2 GetAimingDirection()
     {
@@ -146,10 +126,6 @@ public class ProjectileSpawner : MonoBehaviour
         }
         return direction;
     }
-
-    #endregion
-
-    #region Projectile Spawning
 
     public Projectile SpawnProjectile()
     {
@@ -221,10 +197,6 @@ public class ProjectileSpawner : MonoBehaviour
         Destroy(projectileObj);
     }
 
-    #endregion
-
-    #region Rarity System
-
     private Rarity DetermineProjectileRarity()
     {
         if (!useRaritySystem || raritySystem == null)
@@ -259,10 +231,6 @@ public class ProjectileSpawner : MonoBehaviour
         };
     }
 
-    #endregion
-
-    #region Projectile Management
-
     public void ClearAllProjectiles()
     {
         DestroyAllActiveProjectiles();
@@ -273,8 +241,6 @@ public class ProjectileSpawner : MonoBehaviour
     {
         return activeProjectiles.Count;
     }
-
-
 
     private void CleanupDestroyedProjectiles()
     {
@@ -296,10 +262,6 @@ public class ProjectileSpawner : MonoBehaviour
     {
         activeProjectiles.Clear();
     }
-
-    #endregion
-
-    #region Spawn Point Management
 
     public void RefreshSpawnPointPosition()
     {
@@ -330,10 +292,6 @@ public class ProjectileSpawner : MonoBehaviour
         spawnPoint.localPosition = position;
     }
 
-    #endregion
-
-    #region Debug and Logging
-
     private void LogSpawnPointUpdate(Vector3 position, int gridSize)
     {
         if (showDebugInfo)
@@ -349,10 +307,6 @@ public class ProjectileSpawner : MonoBehaviour
             Debug.Log($"ProjectileSpawner: {message}");
         }
     }
-
-    #endregion
-
-    #region Gizmos and Visualization
 
     private void OnDrawGizmos()
     {
@@ -392,6 +346,4 @@ public class ProjectileSpawner : MonoBehaviour
             Gizmos.DrawWireSphere(spawnPoint.position + (Vector3)(arcPoint * 1.5f), 0.05f);
         }
     }
-
-    #endregion
 } 

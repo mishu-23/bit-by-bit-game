@@ -1,4 +1,5 @@
 using UnityEngine;
+using BitByBit.Core;
 
 namespace BitByBit.Player
 {
@@ -23,17 +24,11 @@ namespace BitByBit.Player
 
     public class CameraController : MonoBehaviour
     {
-        #region Configuration
-        
         [Header("Target")]
         [SerializeField] private Transform target;
         
         [Header("Settings")]
         [SerializeField] private CameraSettings settings = new CameraSettings();
-        
-        #endregion
-        
-        #region Private Fields
         
         private Camera cameraComponent;
         private BoxCollider2D targetCollider;
@@ -41,18 +36,10 @@ namespace BitByBit.Player
         private float lastUpdateTime;
         private bool isInitialized;
         
-        #endregion
-        
-        #region Properties
-        
         public Transform Target => target;
         public CameraSettings Settings => settings;
         public Camera CameraComponent => cameraComponent;
         public bool IsFollowingTarget => target != null && isInitialized;
-        
-        #endregion
-        
-        #region Unity Lifecycle
         
         private void Awake()
         {
@@ -74,10 +61,6 @@ namespace BitByBit.Player
             UpdateCameraPosition();
             lastUpdateTime = Time.time;
         }
-        
-        #endregion
-        
-        #region Initialization
         
         private void InitializeComponents()
         {
@@ -108,8 +91,21 @@ namespace BitByBit.Player
         
         private Transform FindPlayerTarget()
         {
+            // Use GameReferences for better performance
+            if (GameReferences.Instance != null && GameReferences.Instance.Player != null)
+            {
+                return GameReferences.Instance.Player;
+            }
+            
+            // Fallback: try to find player with tag if GameReferences fails
             GameObject player = GameObject.FindGameObjectWithTag("Player");
-            return player?.transform;
+            if (player != null)
+            {
+                Debug.LogWarning("CameraController: Found player via fallback method. Please ensure GameReferences is properly configured.");
+                return player.transform;
+            }
+            
+            return null;
         }
         
         private void CacheTargetComponents()
@@ -148,9 +144,7 @@ namespace BitByBit.Player
             transform.position = initialPosition;
         }
         
-        #endregion
-        
-        #region Camera Movement
+
         
         private bool ShouldUpdateCamera()
         {
@@ -204,9 +198,7 @@ namespace BitByBit.Player
             return target.position;
         }
         
-        #endregion
-        
-        #region Boundary System
+
         
         private Vector3 ApplyBoundaryConstraints(Vector3 position)
         {
@@ -225,9 +217,7 @@ namespace BitByBit.Player
             return position.x >= settings.minX && position.x <= settings.maxX;
         }
         
-        #endregion
-        
-        #region Public Interface
+
         
         public void SetTarget(Transform newTarget)
         {
@@ -290,9 +280,7 @@ namespace BitByBit.Player
             }
         }
         
-        #endregion
-        
-        #region Utility Methods
+
         
         public float GetDistanceToTarget()
         {
@@ -322,9 +310,7 @@ namespace BitByBit.Player
             return Vector3.Lerp(transform.position, currentDesired, settings.followSpeed * deltaTime);
         }
         
-        #endregion
-        
-        #region Debug
+
         
         private void OnDrawGizmosSelected()
         {
@@ -346,6 +332,5 @@ namespace BitByBit.Player
             Gizmos.DrawCube(center, size);
         }
         
-        #endregion
     }
 } 

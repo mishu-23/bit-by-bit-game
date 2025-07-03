@@ -3,18 +3,12 @@ using UnityEngine;
 [System.Serializable]
 public class GathererStealingBehavior : IStealingBehavior
 {
-    #region Configuration Fields
-    
     private float detectionRange;
     private float takeDistance;
     private float searchInterval;
     private Vector3 carryOffset;
     private float minFollowDistance;
-    
-    #endregion
 
-    #region Private Fields
-    
     private CrawlingEntity entity;
     private CrawlingEntityMovement movement;
     private BitCarrier bitCarrier;
@@ -26,11 +20,7 @@ public class GathererStealingBehavior : IStealingBehavior
     private bool isFollowingGatherer;
     private bool isCarryingGatherer;
     private float lastSearchTime;
-    
-    #endregion
 
-    #region IStealingBehavior Implementation
-    
     public bool IsActive => isActive;
     public bool IsComplete => isComplete;
     public string BehaviorName => "Gatherer Stealing";
@@ -107,10 +97,6 @@ public class GathererStealingBehavior : IStealingBehavior
         }
     }
 
-    #endregion
-
-    #region Gatherer Stealing Logic
-    
     private void HandleGathererStealing()
     {
         // Periodic search for gatherers
@@ -240,13 +226,7 @@ public class GathererStealingBehavior : IStealingBehavior
         // Complete the behavior
         OnBehaviorComplete();
     }
-    
-    #endregion
 
-    #region Gatherer Management
-    
-
-    
     private void DropGatherer()
     {
         if (!isCarryingGatherer || carriedGatherer == null) return;
@@ -281,11 +261,7 @@ public class GathererStealingBehavior : IStealingBehavior
         
         entity.DebugLog("Gatherer dropped successfully!");
     }
-    
-    #endregion
 
-    #region Gatherer Detection
-    
     private void FindNearestGatherer()
     {
         // Find all gatherer entities in the scene
@@ -331,11 +307,7 @@ public class GathererStealingBehavior : IStealingBehavior
             }
         }
     }
-    
-    #endregion
 
-    #region Public Utilities
-    
     public bool IsCarryingGatherer => isCarryingGatherer;
     public GameObject CarriedGatherer => carriedGatherer;
     
@@ -347,6 +319,4 @@ public class GathererStealingBehavior : IStealingBehavior
             carriedGatherer.transform.localPosition = carryOffset;
         }
     }
-    
-    #endregion
 } 

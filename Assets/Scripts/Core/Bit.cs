@@ -51,17 +51,11 @@ public class Bit : ScriptableObject
             { Rarity.Legendary, new BitStats(8, 0.2f, 0.3f) }
         };
     
-    #region Properties
-    
     public string BitName => bitName;
     public BitType BitType => bitType;
     public Rarity Rarity => rarity;
     public int Damage => damage;
     public float ShootingProbability => shootingProbability;
-    
-    #endregion
-    
-    #region Public Methods
     
     public Sprite GetSprite()
     {
@@ -126,10 +120,6 @@ public class Bit : ScriptableObject
         return bit;
     }
     
-    #endregion
-    
-    #region Unity Editor
-    
     private void OnValidate()
     {
         ValidateBitConfiguration();
@@ -173,6 +163,4 @@ public class Bit : ScriptableObject
             }
         }
     }
-    
-    #endregion
 } 

@@ -5,27 +5,20 @@ using BitByBit.Items;
 
 public class BitCarrier : MonoBehaviour
 {
-    #region Serialized Fields
-    
     [Header("Bit Drop Settings")]
     [SerializeField] private GameObject bitDropPrefab;
     [SerializeField] private Vector3 bitDropOffset = new Vector3(0f, 1.5f, 0f);
     [SerializeField] private float bitDropBobAmount = 0.2f;
     [SerializeField] private float bitDropBobSpeed = 2f;
     
-    #endregion
+    [Header("Debug Settings")]
+    [SerializeField] private bool enableDebugInfo = false;
 
-    #region Private Fields
-    
     private GameObject attachedBitDrop;
     private Bit attachedBitData;
     private Vector3 originalBitDropOffset;
     private float bobTimer = 0f;
-    
-    #endregion
 
-    #region Events
-    
     [System.Serializable]
     public class BitAttachedEvent : UnityEvent<Bit> { }
     
@@ -34,19 +27,11 @@ public class BitCarrier : MonoBehaviour
     
     public BitAttachedEvent OnBitAttached = new BitAttachedEvent();
     public BitDroppedEvent OnBitDropped = new BitDroppedEvent();
-    
-    #endregion
 
-    #region Public Properties
-    
     public bool IsCarryingBit => attachedBitDrop != null;
     public Bit CarriedBit => attachedBitData;
     public GameObject CarriedBitDrop => attachedBitDrop;
-    
-    #endregion
 
-    #region Unity Lifecycle
-    
     private void Awake()
     {
         originalBitDropOffset = bitDropOffset;
@@ -59,11 +44,7 @@ public class BitCarrier : MonoBehaviour
             UpdateAttachedBitDropPosition();
         }
     }
-    
-    #endregion
 
-    #region Bit Management
-    
     public void AttachBit(Bit bit)
     {
         if (IsCarryingBit)
@@ -99,19 +80,37 @@ public class BitCarrier : MonoBehaviour
             return;
         }
         
-        // Create and immediately drop a random bit
-        Bit randomBit = CreateRandomBit();
-        CreateBitDropAtPosition(randomBit, transform.position);
+        // Create and immediately drop a random bit using BitManager (shows probability logs)
+        if (BitManager.Instance != null)
+        {
+            if (enableDebugInfo)
+            {
+                Debug.Log("BitCarrier: Calling BitManager.GetRandomBit()...");
+            }
+            Bit randomBit = BitManager.Instance.GetRandomBit();
+            if (enableDebugInfo)
+            {
+                Debug.Log($"BitCarrier: BitManager returned: {randomBit?.BitName ?? "NULL"}");
+            }
+            CreateBitDropAtPosition(randomBit, transform.position);
+        }
+        else
+        {
+            Debug.LogError("BitCarrier: BitManager.Instance not found! Cannot drop random bit.");
+        }
     }
-    
-    #endregion
 
-    #region Bit Creation and Setup
-    
     private void CreateAttachedBitDrop()
     {
-        Bit randomBit = CreateRandomBit();
-        CreateAttachedBitDropWithBit(randomBit);
+        if (BitManager.Instance != null)
+        {
+            Bit randomBit = BitManager.Instance.GetRandomBit();
+            CreateAttachedBitDropWithBit(randomBit);
+        }
+        else
+        {
+            Debug.LogError("BitCarrier: BitManager.Instance not found! Cannot create random bit.");
+        }
     }
     
     private void CreateAttachedBitDropWithBit(Bit bit)
@@ -127,19 +126,22 @@ public class BitCarrier : MonoBehaviour
             return;
         }
         {
-            // Create the BitDrop using the static factory method which handles timing properly
-            BitDrop createdBitDrop = BitDrop.CreateBitDrop(bit, transform.position + bitDropOffset);
-            
-            if (createdBitDrop != null)
-            {
-                attachedBitDrop = createdBitDrop.gameObject;
+                            // Create the BitDrop using the static factory method which handles timing properly
+                BitDrop createdBitDrop = BitDrop.CreateBitDrop(bit, transform.position + bitDropOffset);
                 
-                // Disable the component while attached to prevent collection
-                createdBitDrop.enabled = false;
-                
-                Debug.Log($"BitCarrier: Created attached BitDrop with bit: {bit.BitName}");
-                OnBitAttached?.Invoke(bit);
-            }
+                if (createdBitDrop != null)
+                {
+                    attachedBitDrop = createdBitDrop.gameObject;
+                    
+                    // Disable the component while attached to prevent collection
+                    createdBitDrop.enabled = false;
+                    
+                    if (enableDebugInfo)
+                    {
+                        Debug.Log($"BitCarrier: Created attached BitDrop with bit: {bit.BitName}");
+                    }
+                    OnBitAttached?.Invoke(bit);
+                }
             else
             {
                 Debug.LogError("BitCarrier: Failed to create BitDrop!");
@@ -173,11 +175,7 @@ public class BitCarrier : MonoBehaviour
         // Use the same naming convention as the BitManager to ensure compatibility
         return Bit.CreateBit($"{randomRarity} PowerBit", BitType.PowerBit, randomRarity, damage, shootingProbability);
     }
-    
-    #endregion
 
-    #region Visual Effects
-    
     private void UpdateAttachedBitDropPosition()
     {
         if (attachedBitDrop == null) return;
@@ -190,11 +188,7 @@ public class BitCarrier : MonoBehaviour
         Vector3 targetPosition = transform.position + originalBitDropOffset + Vector3.up * bobOffset;
         attachedBitDrop.transform.position = targetPosition;
     }
-    
-    #endregion
 
-    #region Bit Dropping
-    
     private void DropStolenBit()
     {
         if (attachedBitDrop == null || attachedBitData == null) return;
@@ -220,27 +214,34 @@ public class BitCarrier : MonoBehaviour
             bool isEnabledAfterSet = bitDropComponent.enabled;
             
             // Verify the bit drop is set up correctly
-            Debug.Log($"BitCarrier: Dropped bit '{attachedBitData.BitName}' at position {dropPosition}");
-            Debug.Log($"BitCarrier: BitDrop component enabled after setting: {isEnabledAfterSet}, Has bit data: {bitDropComponent.BitData != null}");
-            
-            // Double-check that it stays enabled
-            if (!isEnabledAfterSet)
+            if (enableDebugInfo)
             {
-                Debug.LogError($"BitCarrier: BitDrop component failed to enable! Trying again...");
-                bitDropComponent.enabled = true;
-                Debug.Log($"BitCarrier: Second attempt - BitDrop enabled: {bitDropComponent.enabled}");
+                Debug.Log($"BitCarrier: Dropped bit '{attachedBitData.BitName}' at position {dropPosition}");
+                Debug.Log($"BitCarrier: BitDrop component enabled after setting: {isEnabledAfterSet}, Has bit data: {bitDropComponent.BitData != null}");
+                
+                // Double-check that it stays enabled
+                if (!isEnabledAfterSet)
+                {
+                    Debug.LogError($"BitCarrier: BitDrop component failed to enable! Trying again...");
+                    bitDropComponent.enabled = true;
+                    Debug.Log($"BitCarrier: Second attempt - BitDrop enabled: {bitDropComponent.enabled}");
+                }
+                
+                // Check if the BitDrop has required components
+                Collider2D collider = attachedBitDrop.GetComponent<Collider2D>();
+                SpriteRenderer spriteRenderer = attachedBitDrop.GetComponent<SpriteRenderer>();
+                Debug.Log($"BitCarrier: BitDrop has Collider2D: {collider != null && collider.enabled}, SpriteRenderer: {spriteRenderer != null}");
             }
             
-            // Check if the BitDrop has required components
-            Collider2D collider = attachedBitDrop.GetComponent<Collider2D>();
-            SpriteRenderer spriteRenderer = attachedBitDrop.GetComponent<SpriteRenderer>();
-            Debug.Log($"BitCarrier: BitDrop has Collider2D: {collider != null && collider.enabled}, SpriteRenderer: {spriteRenderer != null}");
-            
             // Ensure collider is enabled
-            if (collider != null && !collider.enabled)
+            Collider2D collider2D = attachedBitDrop.GetComponent<Collider2D>();
+            if (collider2D != null && !collider2D.enabled)
             {
-                collider.enabled = true;
-                Debug.Log($"BitCarrier: Re-enabled Collider2D on dropped bit");
+                collider2D.enabled = true;
+                if (enableDebugInfo)
+                {
+                    Debug.Log($"BitCarrier: Re-enabled Collider2D on dropped bit");
+                }
             }
             
             // Wait a frame and then verify the BitDrop is working
@@ -264,26 +265,22 @@ public class BitCarrier : MonoBehaviour
     
     private void CreateBitDropAtPosition(Bit bit, Vector3 position)
     {
-        if (bitDropPrefab == null)
-        {
-            Debug.LogError("BitCarrier: BitDrop prefab not assigned! Cannot create bit drop.");
-            return;
-        }
+        // Use the static factory method that handles timing properly
+        BitByBit.Items.BitDrop bitDropComponent = BitByBit.Items.BitDrop.CreateBitDrop(bit, position);
         
-        GameObject droppedBit = Instantiate(bitDropPrefab, position, Quaternion.identity);
-        
-        BitDrop bitDropComponent = droppedBit.GetComponent<BitDrop>();
         if (bitDropComponent != null)
         {
-            bitDropComponent.SetBitData(bit);
-            bitDropComponent.enabled = true;
+            if (enableDebugInfo)
+            {
+                Debug.Log($"BitCarrier: Successfully created BitDrop for {bit.BitName} at {position}");
+            }
+        }
+        else
+        {
+            Debug.LogError("BitCarrier: Failed to create BitDrop using static factory method!");
         }
     }
-    
-    #endregion
 
-    #region Public Utilities
-    
     public void SetBitDropOffset(Vector3 offset)
     {
         bitDropOffset = offset;
@@ -348,6 +345,4 @@ public class BitCarrier : MonoBehaviour
             Debug.LogWarning($"BitCarrier: Delayed Verification ({delay}s) - BitDrop component or GameObject is null!");
         }
     }
-    
-    #endregion
 } 

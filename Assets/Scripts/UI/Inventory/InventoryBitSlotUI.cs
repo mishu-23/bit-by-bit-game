@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using BitByBit.Core;
 
 public class InventoryBitSlotUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
@@ -120,18 +121,22 @@ public class InventoryBitSlotUI : MonoBehaviour, IBeginDragHandler, IDragHandler
     // Find the inventory content area
     private Transform FindInventoryContent()
     {
-        // Look for the inventory content in the scene
-        Transform inventoryContent = GameObject.Find("InventoryContent")?.transform;
-        if (inventoryContent == null)
+        // Use GameReferences for better performance
+        if (GameReferences.Instance != null && GameReferences.Instance.InventoryContent != null)
         {
-            // Alternative: look for SmithInventoryTestPopulator and get its inventoryContent
-            SmithInventoryTestPopulator populator = FindObjectOfType<SmithInventoryTestPopulator>();
-            if (populator != null)
-            {
-                inventoryContent = populator.inventoryContent;
-            }
+            return GameReferences.Instance.InventoryContent;
         }
-        return inventoryContent;
+        
+        // Fallback: look for SmithInventoryTestPopulator if GameReferences fails
+        SmithInventoryTestPopulator populator = FindObjectOfType<SmithInventoryTestPopulator>();
+        if (populator != null && populator.inventoryContent != null)
+        {
+            return populator.inventoryContent;
+        }
+        
+        // Last resort fallback (should not be needed if GameReferences is set up correctly)
+        Debug.LogWarning("InventoryBitSlotUI: Could not find InventoryContent via GameReferences. Please ensure GameReferences is properly configured.");
+        return null;
     }
 
     // Public method to clear the bit data and icon

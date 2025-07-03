@@ -9,9 +9,12 @@ EditorBuildSettings:
     path: Assets/Resources/Inventory System - Kinnly/Scenes/SampleScene.unity
     guid: 8c9cfa26abfee488c85f1582747f6a02
   - enabled: 1
-    path: Assets/Scenes/MainScene.unity
-    guid: 41d8ef14d1b9466458f783f6759b45d8
+    path: Assets/Scenes/MainMenu.unity
+    guid: 6cee7bfbe07b20f47aa6fd281b22471f
   - enabled: 1
+    path: Assets/Scenes/MainScene.unity
+    guid: 12ed409b0650af24f99ff2886638a6f6
+  - enabled: 0
     path: Assets/Scenes/Old/CharacterBuild.unity
     guid: 308eef42ac40dab449ef6bbd5f57a4fc
   m_configObjects: {}

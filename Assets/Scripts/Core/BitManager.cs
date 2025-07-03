@@ -16,6 +16,9 @@ public class BitManager : MonoBehaviour
     public Bit testEpicPowerBit;
     public Bit testLegendaryPowerBit;
     
+    [Header("Debug Settings")]
+    [SerializeField] private bool enableDebugInfo = false;
+    
     private void Awake()
     {
         if (Instance == null)
@@ -73,26 +76,31 @@ public class BitManager : MonoBehaviour
         float randomValue = Random.value;
         Rarity selectedRarity;
         BitType bitType;
+        string probabilityInfo;
         
         if (randomValue < 0.10f)        // 10% chance - Core bits
         {
             selectedRarity = Rarity.Common;
             bitType = BitType.CoreBit;
+            probabilityInfo = "10% chance (0.00 - 0.10)";
         }
         else if (randomValue < 0.50f)   // 40% chance - Rare PowerBits (10% + 40% = 50%)
         {
             selectedRarity = Rarity.Rare;
             bitType = BitType.PowerBit;
+            probabilityInfo = "40% chance (0.10 - 0.50)";
         }
         else if (randomValue < 0.80f)   // 30% chance - Epic PowerBits (50% + 30% = 80%)
         {
             selectedRarity = Rarity.Epic;
             bitType = BitType.PowerBit;
+            probabilityInfo = "30% chance (0.50 - 0.80)";
         }
         else                            // 20% chance - Legendary PowerBits (80% + 20% = 100%)
         {
             selectedRarity = Rarity.Legendary;
             bitType = BitType.PowerBit;
+            probabilityInfo = "20% chance (0.80 - 1.00)";
         }
         
         // Create a random bit using the factory method
@@ -121,6 +129,14 @@ public class BitManager : MonoBehaviour
             };
         }
         
-        return Bit.CreateBit(bitName, bitType, selectedRarity, damage, shootingProbability);
+        Bit createdBit = Bit.CreateBit(bitName, bitType, selectedRarity, damage, shootingProbability);
+        
+        // Debug log the probability information
+        if (enableDebugInfo)
+        {
+            Debug.Log($"BitManager: Generated {bitName} | Random value: {randomValue:F3} | {probabilityInfo}");
+        }
+        
+        return createdBit;
     }
 } 

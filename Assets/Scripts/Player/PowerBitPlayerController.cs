@@ -7,8 +7,6 @@ using UnityEngine;
 [RequireComponent(typeof(BoxCollider2D))]
 public class PowerBitPlayerController : MonoBehaviour
 {
-    #region Serialized Fields
-    
     [Header("Movement Settings")]
     [SerializeField] private float moveSpeed = 5f;
     [SerializeField] private float groundCheckDistance = 0.1f;
@@ -44,10 +42,6 @@ public class PowerBitPlayerController : MonoBehaviour
     [Header("Debug")]
     [SerializeField] private bool showDebugInfo = false;
 
-    #endregion
-
-    #region Private Fields
-    
     // Core Components
     private Rigidbody2D rb;
     private BoxCollider2D boxCollider;
@@ -63,10 +57,6 @@ public class PowerBitPlayerController : MonoBehaviour
     private bool isRollStaminaDepleted = false;
     private float rollStaminaLevel = 1f;
     private float rollStaminaTimer = 0f;
-    
-    #endregion
-
-    #region Unity Lifecycle
 
     private void Awake()
     {
@@ -87,10 +77,6 @@ public class PowerBitPlayerController : MonoBehaviour
         ProcessInput();
         HandleOverheat();
     }
-
-    #endregion
-
-    #region Initialization
 
     private void InitializeComponents()
     {
@@ -123,10 +109,6 @@ public class PowerBitPlayerController : MonoBehaviour
         
         LogDebugInfo($"Rolling stamina initialized: {rollStaminaLevel}/{rollStaminaMax}");
         }
-        
-    #endregion
-
-    #region Input and Core Update
 
     private void ProcessInput()
         {
@@ -149,10 +131,6 @@ public class PowerBitPlayerController : MonoBehaviour
     }
 
     private bool IsPaused() => PauseManager.Instance != null && PauseManager.Instance.IsPaused;
-
-    #endregion
-
-    #region Movement System
 
     private void HandleStandardMovement(float moveInput)
         {
@@ -247,10 +225,6 @@ public class PowerBitPlayerController : MonoBehaviour
         transform.position = clampedPosition;
     }
 
-    #endregion
-
-    #region Stamina System
-
     private void HandleRollingStamina(bool isRolling)
     {
         LogDebugInfo($"Rolling Stamina - IsRolling: {isRolling}, Level: {rollStaminaLevel:F2}, Depleted: {isRollStaminaDepleted}, Timer: {rollStaminaTimer:F1}");
@@ -303,10 +277,6 @@ public class PowerBitPlayerController : MonoBehaviour
         
         LogDebugInfo($"Stamina recovering: {rollStaminaLevel:F2} (decay rate: {rollStaminaRecoverRate})");
     }
-
-    #endregion
-
-    #region Combat System
 
     private void HandleShooting()
     {
@@ -365,10 +335,6 @@ public class PowerBitPlayerController : MonoBehaviour
         Debug.Log("=== PLAYER OVERHEATED! 5-second cooldown started ===");
     }
 
-    #endregion
-
-    #region Overheat System
-
     private void HandleOverheat()
     {
         if (isOverheated)
@@ -399,15 +365,16 @@ public class PowerBitPlayerController : MonoBehaviour
             overheatLevel = Mathf.Max(0f, overheatLevel);
         }
 
-    #endregion
-
-    #region Character Build Management
-
     public void LoadLastSavedSmithBuild()
-        {
+    {
         string filePath = System.IO.Path.Combine(Application.persistentDataPath, "smith_build.json");
         
-        if (!System.IO.File.Exists(filePath)) return;
+        if (!System.IO.File.Exists(filePath))
+        {
+            Debug.Log("No saved build found. Creating default 2x2 build for new game.");
+            CreateAndLoadDefaultBuild();
+            return;
+        }
 
         try
         {
@@ -422,6 +389,42 @@ public class PowerBitPlayerController : MonoBehaviour
         catch (System.Exception e)
         {
             Debug.LogError($"Error loading Smith build: {e.Message}");
+            Debug.Log("Creating default 2x2 build as fallback.");
+            CreateAndLoadDefaultBuild();
+        }
+    }
+
+    private void CreateAndLoadDefaultBuild()
+    {
+        // Create a default empty 2x2 build
+        SmithGridStateData defaultBuild = new SmithGridStateData(2);
+        
+        // Don't add any bits - leave the grid empty
+        // The PowerBitCharacterRenderer will display this as an empty 2x2 grid with default tiles
+        
+        // Load the default build into the character renderer
+        if (powerBitCharacterRenderer != null)
+        {
+            LoadSmithBuild(defaultBuild);
+            Debug.Log("Default empty 2x2 build loaded successfully.");
+        }
+        
+        // Save the default build for future use
+        SaveDefaultBuild(defaultBuild);
+    }
+    
+    private void SaveDefaultBuild(SmithGridStateData defaultBuild)
+    {
+        try
+        {
+            string json = JsonUtility.ToJson(defaultBuild, true);
+            string filePath = System.IO.Path.Combine(Application.persistentDataPath, "smith_build.json");
+            System.IO.File.WriteAllText(filePath, json);
+            Debug.Log("Default build saved to file.");
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"Error saving default build: {e.Message}");
         }
     }
 
@@ -489,12 +492,8 @@ public class PowerBitPlayerController : MonoBehaviour
         {
             BitCollectionManager.Instance.InvalidateCache();
             Debug.Log("BitCollectionManager cache invalidated after build update");
-            }
-        }
-
-    #endregion
-
-    #region Damage and Bit Stealing
+                    }
+    }
 
     public void TakeDamage(int damage)
     {
@@ -545,6 +544,12 @@ public class PowerBitPlayerController : MonoBehaviour
     {
         powerBitCharacterRenderer.RemoveBit(position);
         UpdateColliderSize();
+        
+        // CRITICAL: Save the updated build state and invalidate cache
+        SaveUpdatedBuild();
+        InvalidateBitCollectionCache();
+        
+        Debug.Log($"Bit removed from build at position {position} - build saved and cache invalidated");
     }
 
     private Vector2Int SelectRandomBit(List<Vector2Int> activeBits)
@@ -563,10 +568,6 @@ public class PowerBitPlayerController : MonoBehaviour
             bitData.shootingProbability
         );
     }
-
-    #endregion
-
-    #region Component Management
 
     private void UpdateColliderSize()
     {
@@ -591,15 +592,7 @@ public class PowerBitPlayerController : MonoBehaviour
         }
     }
 
-    #endregion
-
-    #region Public Properties - Movement
-
     public float GetCurrentMovementSpeedMultiplier() => GetMovementSpeedMultiplier();
-
-    #endregion
-
-    #region Public Properties - Combat
 
     public int GetTotalDamage() => powerBitCharacterRenderer?.GetTotalDamage() ?? 0;
     
@@ -616,10 +609,6 @@ public class PowerBitPlayerController : MonoBehaviour
     public int GetActiveProjectileCount() => projectileSpawner?.GetActiveProjectileCount() ?? 0;
     
     public ProjectileSpawner GetProjectileSpawner() => projectileSpawner;
-    
-    #endregion
-
-    #region Public Properties - Overheat
 
     public float GetOverheatLevel() => overheatLevel;
     
@@ -635,10 +624,6 @@ public class PowerBitPlayerController : MonoBehaviour
     
     public float GetOverheatTimer() => overheatTimer;
 
-    #endregion
-
-    #region Public Properties - Stamina
-
     public float GetRollStaminaLevel() => rollStaminaLevel;
     
     public float GetRollStaminaMax() => rollStaminaMax;
@@ -649,15 +634,7 @@ public class PowerBitPlayerController : MonoBehaviour
     
     public float GetRollStaminaTimer() => rollStaminaTimer;
 
-    #endregion
-
-    #region Public Properties - Character
-
     public int GetPowerBitCount() => powerBitCharacterRenderer?.GetActiveBits().Count ?? 0;
-
-    #endregion
-
-    #region Utilities
 
     private void LogDebugInfo(string message)
     {
@@ -666,6 +643,4 @@ public class PowerBitPlayerController : MonoBehaviour
             Debug.Log(message);
         }
     }
-
-    #endregion
 } 

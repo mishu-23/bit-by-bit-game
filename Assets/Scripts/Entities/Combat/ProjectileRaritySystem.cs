@@ -1,11 +1,10 @@
 using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
+using BitByBit.Core;
 
 public class ProjectileRaritySystem : MonoBehaviour
 {
-    #region Serialized Fields
-    
     [Header("Base Chances (%)")]
     [SerializeField] private float baseLegendaryChance = 10f;
     [SerializeField] private float baseEpicChance = 20f;
@@ -21,31 +20,33 @@ public class ProjectileRaritySystem : MonoBehaviour
     [Header("Debug")]
     [SerializeField] private bool showDebugInfo = true;
     
-    #endregion
-    
-    #region Private Fields
-    
     private PowerBitCharacterRenderer characterRenderer;
-    
-    #endregion
-    
-    #region Unity Lifecycle
     
     private void Awake()
     {
         FindCharacterRenderer();
     }
     
-    #endregion
-    
-    #region Initialization
-    
     private void FindCharacterRenderer()
     {
         characterRenderer = GetComponentInParent<PowerBitCharacterRenderer>();
         if (characterRenderer == null)
         {
-            characterRenderer = FindObjectOfType<PowerBitCharacterRenderer>();
+            // Use GameReferences for better performance
+            if (GameReferences.Instance != null && GameReferences.Instance.CharacterRenderer != null)
+            {
+                characterRenderer = GameReferences.Instance.CharacterRenderer;
+                Debug.Log("ProjectileRaritySystem: Found PowerBitCharacterRenderer via GameReferences");
+            }
+            else
+            {
+                // Fallback: try to find component if GameReferences fails
+                characterRenderer = FindObjectOfType<PowerBitCharacterRenderer>();
+                if (characterRenderer != null)
+                {
+                    Debug.LogWarning("ProjectileRaritySystem: Found PowerBitCharacterRenderer via fallback method. Please ensure GameReferences is properly configured.");
+                }
+            }
         }
         
         if (characterRenderer == null)
@@ -53,10 +54,6 @@ public class ProjectileRaritySystem : MonoBehaviour
             Debug.LogError("ProjectileRaritySystem: No PowerBitCharacterRenderer found!");
         }
     }
-    
-    #endregion
-    
-    #region Public Interface
     
     public Rarity DetermineProjectileRarity()
     {
@@ -85,10 +82,6 @@ public class ProjectileRaritySystem : MonoBehaviour
         
         return selectedRarity;
     }
-    
-    #endregion
-    
-    #region Bit Count Analysis
     
     private Dictionary<Rarity, int> GetPlayerBitCounts()
     {
@@ -122,10 +115,6 @@ public class ProjectileRaritySystem : MonoBehaviour
         
         return bitCounts;
     }
-    
-    #endregion
-    
-    #region Chance Calculation
     
     private Dictionary<Rarity, float> CalculateRawChances(Dictionary<Rarity, int> bitCounts)
     {
@@ -185,10 +174,6 @@ public class ProjectileRaritySystem : MonoBehaviour
         return normalizedChances;
     }
     
-    #endregion
-    
-    #region Random Selection
-    
     private Rarity PerformWeightedSelection(Dictionary<Rarity, float> normalizedChances)
     {
         float randomValue = Random.Range(0f, 100f);
@@ -210,10 +195,6 @@ public class ProjectileRaritySystem : MonoBehaviour
         return Rarity.Common;
     }
     
-    #endregion
-    
-    #region Debug and Logging
-    
     private void LogRarityCalculation(Dictionary<Rarity, int> bitCounts, Dictionary<Rarity, float> rawChances, 
                                     Dictionary<Rarity, float> filteredChances, Dictionary<Rarity, float> normalizedChances, 
                                     Rarity selectedRarity)
@@ -228,6 +209,4 @@ public class ProjectileRaritySystem : MonoBehaviour
         Debug.Log($"Selected Rarity: {selectedRarity}");
         Debug.Log("=====================================");
     }
-    
-    #endregion
 } 

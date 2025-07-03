@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections;
+using BitByBit.Core;
 
 public class CrawlingEntitySpawner : MonoBehaviour
 {
@@ -42,18 +43,48 @@ public class CrawlingEntitySpawner : MonoBehaviour
     
     private void Awake()
     {
-        // Find main camera
-        mainCamera = Camera.main;
-        if (mainCamera == null)
+        InitializeReferences();
+    }
+    
+    private void InitializeReferences()
+    {
+        // Use GameReferences for better performance
+        if (GameReferences.Instance != null)
         {
-            mainCamera = FindObjectOfType<Camera>();
+            if (GameReferences.Instance.MainCamera != null)
+            {
+                mainCamera = GameReferences.Instance.MainCamera;
+            }
+            
+            if (GameReferences.Instance.Player != null)
+            {
+                playerTransform = GameReferences.Instance.Player;
+            }
         }
         
-        // Find player
-        GameObject player = GameObject.FindGameObjectWithTag("Player");
-        if (player != null)
+        // Fallback: find main camera if GameReferences fails
+        if (mainCamera == null)
         {
-            playerTransform = player.transform;
+            mainCamera = Camera.main;
+            if (mainCamera == null)
+            {
+                mainCamera = FindObjectOfType<Camera>();
+            }
+            if (mainCamera != null)
+            {
+                Debug.LogWarning("CrawlingEntitySpawner: Found camera via fallback method. Please ensure GameReferences is properly configured.");
+            }
+        }
+        
+        // Fallback: find player if GameReferences fails
+        if (playerTransform == null)
+        {
+            GameObject player = GameObject.FindGameObjectWithTag("Player");
+            if (player != null)
+            {
+                playerTransform = player.transform;
+                Debug.LogWarning("CrawlingEntitySpawner: Found player via fallback method. Please ensure GameReferences is properly configured.");
+            }
         }
     }
     

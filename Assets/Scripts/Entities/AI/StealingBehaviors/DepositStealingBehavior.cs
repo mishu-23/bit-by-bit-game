@@ -3,15 +3,9 @@ using UnityEngine;
 [System.Serializable]
 public class DepositStealingBehavior : IStealingBehavior
 {
-    #region Configuration Fields
-    
     private float detectionRange;
     private float approachDistance;
-    
-    #endregion
 
-    #region Private Fields
-    
     private CrawlingEntity entity;
     private CrawlingEntityMovement movement;
     private BitCarrier bitCarrier;
@@ -20,11 +14,7 @@ public class DepositStealingBehavior : IStealingBehavior
     private bool isActive;
     private bool isComplete;
     private bool isMovingToDeposit;
-    
-    #endregion
 
-    #region IStealingBehavior Implementation
-    
     public bool IsActive => isActive;
     public bool IsComplete => isComplete;
     public string BehaviorName => "Deposit Stealing";
@@ -89,10 +79,6 @@ public class DepositStealingBehavior : IStealingBehavior
         movement?.StopMovement();
     }
 
-    #endregion
-
-    #region Deposit Stealing Logic
-    
     private void HandleDepositStealing()
     {
         if (depositTarget == null)
@@ -165,11 +151,7 @@ public class DepositStealingBehavior : IStealingBehavior
             OnBehaviorFailed();
         }
     }
-    
-    #endregion
 
-    #region Deposit Detection
-    
     private void FindNearestDeposit()
     {
         // Find all deposit interactions in the scene
@@ -206,6 +188,4 @@ public class DepositStealingBehavior : IStealingBehavior
             entity.DebugLog("No deposits within detection range");
         }
     }
-    
-    #endregion
 } 

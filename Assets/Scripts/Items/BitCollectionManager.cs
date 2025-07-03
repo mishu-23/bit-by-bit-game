@@ -2,6 +2,7 @@ using UnityEngine;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using BitByBit.Core;
 
 namespace BitByBit.Items
 {
@@ -66,8 +67,6 @@ namespace BitByBit.Items
 
 public class BitCollectionManager : MonoBehaviour
 {
-        #region Configuration
-    
     [Header("References")]
         [SerializeField] private PowerBitPlayerController playerController;
         [SerializeField] private GameObject bitDropPrefab;
@@ -76,19 +75,11 @@ public class BitCollectionManager : MonoBehaviour
         [SerializeField] private string buildFileName = "smith_build.json";
         [SerializeField] private int defaultGridSize = 2;
         
-        #endregion
-        
-        #region Private Fields
-        
         private IBuildPersistenceService persistenceService;
         private HashSet<Vector2Int> occupiedPositions;
         private SmithGridStateData cachedBuild;
         private bool buildCacheValid;
         private bool isUpdatingPlayer; // Prevent recursive updates
-        
-        #endregion
-        
-        #region Singleton
         
         public static BitCollectionManager Instance { get; private set; }
     
@@ -111,10 +102,6 @@ public class BitCollectionManager : MonoBehaviour
             Destroy(gameObject);
         }
     }
-        
-        #endregion
-        
-        #region Initialization
     
     private void Start()
     {
@@ -154,11 +141,24 @@ public class BitCollectionManager : MonoBehaviour
         {
             if (playerController == null)
             {
-                playerController = FindObjectOfType<PowerBitPlayerController>();
-                
-                if (playerController == null)
+                // Use GameReferences for better performance
+                if (GameReferences.Instance != null && GameReferences.Instance.PlayerController != null)
                 {
-                    Debug.LogWarning("BitCollectionManager: PowerBitPlayerController not found!");
+                    playerController = GameReferences.Instance.PlayerController;
+                    Debug.Log("BitCollectionManager: Found PowerBitPlayerController via GameReferences");
+                }
+                else
+                {
+                    // Fallback: try to find component if GameReferences fails
+                    playerController = FindObjectOfType<PowerBitPlayerController>();
+                    if (playerController != null)
+                    {
+                        Debug.LogWarning("BitCollectionManager: Found PowerBitPlayerController via fallback method. Please ensure GameReferences is properly configured.");
+                    }
+                    else
+                    {
+                        Debug.LogWarning("BitCollectionManager: PowerBitPlayerController not found!");
+                    }
                 }
             }
         }
@@ -175,10 +175,6 @@ public class BitCollectionManager : MonoBehaviour
                 Debug.LogWarning("BitCollectionManager: BitDrop prefab not assigned! Please assign it in the inspector.");
             }
         }
-        
-        #endregion
-        
-        #region Public Interface
         
         public bool CollectBit(Bit bitData)
         {
@@ -233,10 +229,6 @@ public class BitCollectionManager : MonoBehaviour
             occupiedPositions.Clear();
         }
         
-        /// <summary>
-        /// Force cleanup of build data by removing duplicates and inconsistencies
-        /// This should be called when data corruption is detected
-        /// </summary>
         public bool CleanupBuildData()
         {
             Debug.Log("BitCollectionManager: Starting comprehensive build data cleanup...");
@@ -320,10 +312,6 @@ public class BitCollectionManager : MonoBehaviour
             }
         }
         
-        #endregion
-        
-        #region Core Logic
-        
         private bool ValidateBitData(Bit bitData)
         {
             if (bitData == null)
@@ -364,8 +352,21 @@ public class BitCollectionManager : MonoBehaviour
         
         private int GetCurrentGridSize()
         {
+            // Use GameReferences for better performance
+            if (GameReferences.Instance != null && GameReferences.Instance.SmithBuildManager != null)
+            {
+                return GameReferences.Instance.SmithBuildManager.gridSize;
+            }
+            
+            // Fallback: try to find component if GameReferences fails
             var smithManager = FindObjectOfType<SmithBuildManager>();
-            return smithManager?.gridSize ?? defaultGridSize;
+            if (smithManager != null)
+            {
+                Debug.LogWarning("BitCollectionManager: Found SmithBuildManager via fallback method. Please ensure GameReferences is properly configured.");
+                return smithManager.gridSize;
+            }
+            
+            return defaultGridSize;
         }
         
         private bool HasAvailableSpace(SmithGridStateData build)
@@ -564,15 +565,9 @@ public class BitCollectionManager : MonoBehaviour
             }
         }
         
-        #endregion
-        
-        #region Properties
-        
         public PowerBitPlayerController PlayerController => playerController;
         public GameObject BitDropPrefab => bitDropPrefab;
         public string BuildFileName => buildFileName;
-        
-        #endregion
     }
 
     [System.Serializable]

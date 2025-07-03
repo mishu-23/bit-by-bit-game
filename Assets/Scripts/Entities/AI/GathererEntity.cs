@@ -1,11 +1,10 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using BitByBit.Core;
 
 public class GathererEntity : MonoBehaviour
 {
-    #region Enums
-    
     public enum GathererState
     {
         MovingToGather,
@@ -14,11 +13,7 @@ public class GathererEntity : MonoBehaviour
         Depositing,
         Wandering
     }
-    
-    #endregion
 
-    #region Serialized Fields
-    
     [Header("Points")]
     public Transform minePoint;
     public Transform treePoint;
@@ -34,19 +29,11 @@ public class GathererEntity : MonoBehaviour
     public float gatherTime = 5f;
     public float depositTime = 5f;
     public float wanderTime = 10f;
-    
-    #endregion
 
-    #region Private Fields
-    
     private Rigidbody2D rb;
     private GathererState state;
     private bool isMoving;
     private float targetX;
-    
-    #endregion
-
-    #region Unity Lifecycle
 
     private void Awake()
     {
@@ -67,9 +54,22 @@ public class GathererEntity : MonoBehaviour
         ProcessMovement();
     }
 
-    #endregion
-
-    #region Initialization
+    private void OnDestroy()
+    {
+        // Only decrement count if the gatherer is being destroyed during gameplay,
+        // not when exiting play mode or quitting the application
+        if (GathererManager.Instance != null && !isQuitting)
+        {
+            GathererManager.Instance.DecrementGathererCount();
+        }
+    }
+    
+    private static bool isQuitting = false;
+    
+    private void OnApplicationQuit()
+    {
+        isQuitting = true;
+    }
 
     private void InitializeComponents()
     {
@@ -98,7 +98,35 @@ public class GathererEntity : MonoBehaviour
     {
         if (point != null) return;
 
-        GameObject foundObject = GameObject.Find(objectName);
+        GameObject foundObject = null;
+        
+        // Use GameReferences for better performance
+        if (GameReferences.Instance != null)
+        {
+            switch (objectName)
+            {
+                case "Mine":
+                    foundObject = GameReferences.Instance.Mine;
+                    break;
+                case "Tree":
+                    foundObject = GameReferences.Instance.Tree;
+                    break;
+                case "Deposit":
+                    foundObject = GameReferences.Instance.Deposit;
+                    break;
+            }
+        }
+        
+        // Fallback: try to find object if GameReferences fails or doesn't have it
+        if (foundObject == null)
+        {
+            foundObject = GameObject.Find(objectName);
+            if (foundObject != null)
+            {
+                Debug.LogWarning($"GathererEntity: Found {objectName} via fallback method. Please ensure GameReferences is properly configured.");
+            }
+        }
+        
         if (foundObject != null)
         {
             point = foundObject.transform;
@@ -109,10 +137,6 @@ public class GathererEntity : MonoBehaviour
             Debug.LogError($"GathererEntity {gameObject.name}: Could not find {objectName} point! Please assign it manually.");
         }
     }
-
-    #endregion
-
-    #region Movement System
 
     private void ProcessMovement()
     {
@@ -173,10 +197,6 @@ public class GathererEntity : MonoBehaviour
         }
     }
 
-    #endregion
-
-    #region AI State Machine
-
     public void StartGatheringCycle()
     {
         state = GathererState.MovingToGather;
@@ -211,10 +231,6 @@ public class GathererEntity : MonoBehaviour
     {
         return (target == minePoint) ? "Mine" : "Tree";
     }
-
-    #endregion
-
-    #region Activity Coroutines
 
     private IEnumerator ProcessGathering()
     {
@@ -280,10 +296,6 @@ public class GathererEntity : MonoBehaviour
         yield return new WaitForSeconds(pause);
     }
 
-    #endregion
-
-    #region Resource Management
-
     private void TryDepositToBuild()
     {
         DepositInteraction deposit = FindDepositInteraction();
@@ -309,13 +321,20 @@ public class GathererEntity : MonoBehaviour
         deposit = depositPoint.GetComponentInChildren<DepositInteraction>();
         if (deposit != null) return deposit;
 
-        // Find any in scene as fallback
-        return FindObjectOfType<DepositInteraction>();
+        // Use GameReferences for better performance
+        if (GameReferences.Instance != null && GameReferences.Instance.DepositInteraction != null)
+        {
+            return GameReferences.Instance.DepositInteraction;
+        }
+
+        // Fallback: find any in scene
+        DepositInteraction fallback = FindObjectOfType<DepositInteraction>();
+        if (fallback != null)
+        {
+            Debug.LogWarning("GathererEntity: Found DepositInteraction via fallback method. Please ensure GameReferences is properly configured.");
+        }
+        return fallback;
     }
-
-    #endregion
-
-    #region Collision Handling
 
     private void OnCollisionEnter2D(Collision2D collision)
     {
@@ -332,14 +351,88 @@ public class GathererEntity : MonoBehaviour
         return other.CompareTag("Player") || other.layer == 8;
     }
 
-    #endregion
+    [Header("Debug Controls")]
+    [SerializeField] private bool enableDebugInfo = false;
+    [SerializeField] private KeyCode debugKey = KeyCode.G;
 
-    #region Debug and Visualization
+    private void Update()
+    {
+        if (Input.GetKeyDown(debugKey))
+        {
+            PrintDebugInfo();
+        }
+        
+        if (enableDebugInfo)
+        {
+            // Show debug info every few seconds
+            if (Time.time % 3f < 0.1f)
+            {
+                PrintDebugInfo();
+            }
+        }
+    }
 
     private void OnDrawGizmos()
     {
         DrawMovementGizmos();
         DrawStateGizmos();
+    }
+    
+    public void PrintDebugInfo()
+    {
+        string debugInfo = "=== GATHERER ENTITY DEBUG INFO ===\n";
+        debugInfo += $"Name: {gameObject.name}\n";
+        debugInfo += $"Position: {transform.position}\n";
+        debugInfo += $"Current State: {state}\n";
+        debugInfo += $"Is Moving: {isMoving}\n";
+        debugInfo += $"Target X: {targetX}\n";
+        debugInfo += $"Enabled: {enabled}\n";
+        debugInfo += $"GameObject Active: {gameObject.activeInHierarchy}\n";
+        
+        // Component checks
+        debugInfo += "\n--- COMPONENTS ---\n";
+        debugInfo += $"Rigidbody2D: {(rb != null ? "OK" : "MISSING")}\n";
+        if (rb != null)
+        {
+            debugInfo += $"  - Velocity: {rb.linearVelocity}\n";
+            debugInfo += $"  - Simulated: {rb.simulated}\n";
+        }
+        
+        Collider2D col = GetComponent<Collider2D>();
+        debugInfo += $"Collider2D: {(col != null ? "OK" : "MISSING")}\n";
+        if (col != null)
+        {
+            debugInfo += $"  - Enabled: {col.enabled}\n";
+            debugInfo += $"  - IsTrigger: {col.isTrigger}\n";
+        }
+        
+        // Reference points
+        debugInfo += "\n--- REFERENCE POINTS ---\n";
+        debugInfo += $"Mine Point: {(minePoint != null ? minePoint.position.ToString() : "NULL")}\n";
+        debugInfo += $"Tree Point: {(treePoint != null ? treePoint.position.ToString() : "NULL")}\n";
+        debugInfo += $"Deposit Point: {(depositPoint != null ? depositPoint.position.ToString() : "NULL")}\n";
+        
+        // Settings
+        debugInfo += "\n--- SETTINGS ---\n";
+        debugInfo += $"Move Force: {moveForce}\n";
+        debugInfo += $"Max Speed: {maxSpeed}\n";
+        debugInfo += $"Ground Y: {groundY}\n";
+        debugInfo += $"Arrival Distance: {arrivalDistance}\n";
+        debugInfo += $"Gather Time: {gatherTime}s\n";
+        debugInfo += $"Deposit Time: {depositTime}s\n";
+        debugInfo += $"Wander Time: {wanderTime}s\n";
+        
+        // Manager reference
+        debugInfo += "\n--- MANAGER ---\n";
+        debugInfo += $"GathererManager Instance: {(GathererManager.Instance != null ? "OK" : "NULL")}\n";
+        
+        // Parent/child info
+        debugInfo += "\n--- TRANSFORM INFO ---\n";
+        debugInfo += $"Parent: {(transform.parent != null ? transform.parent.name : "None")}\n";
+        debugInfo += $"Layer: {gameObject.layer}\n";
+        debugInfo += $"Tag: {gameObject.tag}\n";
+        
+        Debug.Log(debugInfo);
     }
 
     private void DrawMovementGizmos()
@@ -361,8 +454,9 @@ public class GathererEntity : MonoBehaviour
 
     private void LogDebug(string message)
     {
-        Debug.Log(message);
+        if (enableDebugInfo)
+        {
+            Debug.Log(message);
+        }
     }
-
-    #endregion
 } 

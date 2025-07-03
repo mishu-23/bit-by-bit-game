@@ -29,7 +29,7 @@ Transform:
   m_GameObject: {fileID: 7894677405706821340}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 4.889036, y: 4.678608, z: -0.5}
+  m_LocalPosition: {x: 4.889036, y: 4.678608, z: 0}
   m_LocalScale: {x: 0.4, y: 0.4, z: 0}
   m_ConstrainProportionsScale: 1
   m_Children:
@@ -79,7 +79,7 @@ SpriteRenderer:
   m_LightmapParameters: {fileID: 0}
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 0
+  m_SortingOrder: 2
   m_Sprite: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
@@ -177,12 +177,26 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   bitData: {fileID: 0}
-  collectionRange: 1.5
-  collectionSpeed: 5
-  groundLayer:
-    serializedVersion: 2
-    m_Bits: 1
-  fIcon: {fileID: 5379544535004512685}
+  settings:
+    collectionRange: 2
+    collectionSpeed: 5
+    collectionDistance: 0.5
+    collectionKey: 102
+    distanceCheckInterval: 0.1
+  collectionPrompt: {fileID: 0}
+  events:
+    OnPlayerEnterRange:
+      m_PersistentCalls:
+        m_Calls: []
+    OnPlayerExitRange:
+      m_PersistentCalls:
+        m_Calls: []
+    OnCollectionStarted:
+      m_PersistentCalls:
+        m_Calls: []
+    OnCollectionCompleted:
+      m_PersistentCalls:
+        m_Calls: []
 --- !u!1001 &2183806640179940670
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -252,11 +266,6 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 1087f31eb5796b6489ed6b0aa6375200, type: 3}
---- !u!1 &5379544535004512685 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 6118575298528545939, guid: 1087f31eb5796b6489ed6b0aa6375200, type: 3}
-  m_PrefabInstance: {fileID: 2183806640179940670}
-  m_PrefabAsset: {fileID: 0}
 --- !u!4 &6397400475348847941 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 5081838598224199803, guid: 1087f31eb5796b6489ed6b0aa6375200, type: 3}

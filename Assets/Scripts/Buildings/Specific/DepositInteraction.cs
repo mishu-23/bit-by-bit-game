@@ -9,7 +9,7 @@ public class DepositInteraction : MonoBehaviour
     public GameObject eIcon;
     
     [Header("Core Bit Deposit Settings")]
-    [SerializeField] private int coreBitCount = 10; // Number of Core Bits in the deposit
+    [SerializeField] private int coreBitCount = 0; // Number of Core Bits in the deposit - will be loaded from save
     
     [Header("Visual Feedback")]
     [SerializeField] private Image progressBar; // Optional radial fill for progress
@@ -23,6 +23,9 @@ public class DepositInteraction : MonoBehaviour
     {
         if (qIcon != null) qIcon.SetActive(false);
         if (eIcon != null) eIcon.SetActive(false);
+        
+        // Load deposit state from save file
+        LoadDepositState();
     }
 
     private void OnTriggerEnter2D(Collider2D other)
@@ -81,6 +84,7 @@ public class DepositInteraction : MonoBehaviour
         if (added)
         {
             coreBitCount--;
+            SaveDepositState();
             Debug.Log($"Player took a Core Bit from deposit. Core Bits left: {coreBitCount}");
         }
         else
@@ -101,6 +105,7 @@ public class DepositInteraction : MonoBehaviour
         if (removed != null)
         {
             coreBitCount++;
+            SaveDepositState();
             Debug.Log($"Player deposited a Core Bit. Core Bits in deposit: {coreBitCount}");
         }
         else
@@ -151,6 +156,7 @@ public class DepositInteraction : MonoBehaviour
     public void AddCoreBitFromGatherer()
     {
         coreBitCount++;
+        SaveDepositState();
         Debug.Log($"Gatherer deposited a Core Bit. Core Bits in deposit: {coreBitCount}");
     }
     
@@ -159,10 +165,92 @@ public class DepositInteraction : MonoBehaviour
         if (coreBitCount > 0)
         {
             coreBitCount--;
+            SaveDepositState();
             Debug.Log($"Core Bit removed from deposit. Core Bits left: {coreBitCount}");
             return true;
         }
         Debug.Log("Cannot remove Core Bit - deposit is empty!");
         return false;
+    }
+    
+    private void LoadDepositState()
+    {
+        string filePath = System.IO.Path.Combine(Application.persistentDataPath, "settlement_storage.json");
+        
+        if (!System.IO.File.Exists(filePath))
+        {
+            Debug.Log("No settlement storage file found. Starting with empty deposit (0 Core Bits).");
+            coreBitCount = 0;
+            return;
+        }
+
+        try
+        {
+            string json = System.IO.File.ReadAllText(filePath);
+            SettlementSaveData saveData = JsonUtility.FromJson<SettlementSaveData>(json);
+            
+            if (saveData != null)
+            {
+                coreBitCount = saveData.depositCoreBitCount;
+                Debug.Log($"Deposit loaded with {coreBitCount} Core Bits from save file.");
+            }
+            else
+            {
+                Debug.LogWarning("Failed to parse settlement save data. Starting with empty deposit.");
+                coreBitCount = 0;
+            }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"Error loading settlement storage: {e.Message}. Starting with empty deposit.");
+            coreBitCount = 0;
+        }
+    }
+    
+    private void SaveDepositState()
+    {
+        // Load existing data first to preserve other fields
+        SettlementSaveData saveData = LoadExistingSettlementData();
+        saveData.depositCoreBitCount = coreBitCount;
+        
+        try
+        {
+            string json = JsonUtility.ToJson(saveData, true);
+            string filePath = System.IO.Path.Combine(Application.persistentDataPath, "settlement_storage.json");
+            System.IO.File.WriteAllText(filePath, json);
+            Debug.Log($"Deposit state saved: {coreBitCount} Core Bits");
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"Error saving settlement storage: {e.Message}");
+        }
+    }
+    
+    private SettlementSaveData LoadExistingSettlementData()
+    {
+        string filePath = System.IO.Path.Combine(Application.persistentDataPath, "settlement_storage.json");
+        
+        if (!System.IO.File.Exists(filePath))
+        {
+            return new SettlementSaveData();
+        }
+
+        try
+        {
+            string json = System.IO.File.ReadAllText(filePath);
+            SettlementSaveData saveData = JsonUtility.FromJson<SettlementSaveData>(json);
+            return saveData ?? new SettlementSaveData();
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"Error loading settlement storage: {e.Message}");
+            return new SettlementSaveData();
+        }
+    }
+    
+    // Public getter for external access
+    public int GetCoreBitCount()
+    {
+        return coreBitCount;
     }
 } 

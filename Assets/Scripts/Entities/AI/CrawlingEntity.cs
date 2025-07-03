@@ -4,8 +4,6 @@ using System.Collections;
 [RequireComponent(typeof(CrawlingEntityMovement), typeof(CrawlingEntityCombat), typeof(BitCarrier))]
 public class CrawlingEntity : MonoBehaviour
 {
-    #region Serialized Fields
-    
     [Header("Debug")]
     [SerializeField] private bool enableDebugLogging = true;
     
@@ -31,46 +29,26 @@ public class CrawlingEntity : MonoBehaviour
     [Header("Flee Settings")]
     [SerializeField] private float fleeSpeed = 6f;
     [SerializeField] private float fleeDistance = 8f;
-    
-    #endregion
 
-    #region Private Fields - Components
-    
     private CrawlingEntityMovement movement;
     private CrawlingEntityCombat combat;
     private BitCarrier bitCarrier;
-    
-    #endregion
 
-    #region Private Fields - Behaviors
-    
     private IStealingBehavior currentBehavior;
     private PlayerStealingBehavior playerStealingBehavior;
     private DepositStealingBehavior depositStealingBehavior;
     private GathererStealingBehavior gathererStealingBehavior;
-    
-    #endregion
 
-    #region Private Fields - State
-    
     private bool isFleeing;
     private Vector3 fleeTarget;
-    
-    #endregion
 
-    #region Enums
-    
     private enum StealMechanic
     {
         StealFromPlayer,
         StealFromDeposit,
         FollowGatherer
     }
-    
-    #endregion
 
-    #region Unity Lifecycle
-    
     private void Awake()
     {
         InitializeComponents();
@@ -103,11 +81,7 @@ public class CrawlingEntity : MonoBehaviour
             currentBehavior.ExecuteBehavior();
         }
     }
-    
-    #endregion
 
-    #region Initialization
-    
     private void InitializeComponents()
     {
         movement = GetComponent<CrawlingEntityMovement>();
@@ -183,11 +157,7 @@ public class CrawlingEntity : MonoBehaviour
             bitCarrier.OnBitAttached.AddListener(OnBitStolen);
         }
     }
-    
-    #endregion
 
-    #region Behavior Management
-    
     public void StartFleeing()
     {
         // Don't stop gatherer behavior if it's carrying a gatherer - let it continue carrying while fleeing
@@ -230,11 +200,7 @@ public class CrawlingEntity : MonoBehaviour
             Destroy(gameObject);
         }
     }
-    
-    #endregion
 
-    #region Event Handlers
-    
     private void HandleDeath()
     {
         DebugLog($"CrawlingEntity {gameObject.name} died!");
@@ -262,10 +228,6 @@ public class CrawlingEntity : MonoBehaviour
     {
         DebugLog($"CrawlingEntity {gameObject.name} successfully stole bit: {stolenBit.name}");
     }
-    
-    #endregion
-
-    #region Collision Detection
 
     private void OnTriggerEnter2D(Collider2D other)
     {
@@ -288,11 +250,7 @@ public class CrawlingEntity : MonoBehaviour
             DebugLog($"CrawlingEntity {gameObject.name} collided with player: {collision.gameObject.name}");
         }
     }
-    
-    #endregion
 
-    #region Public Interface
-    
     public void ResetEntity()
     {
         isFleeing = false;
@@ -319,11 +277,7 @@ public class CrawlingEntity : MonoBehaviour
         // This would need to be tracked by the behavior
         return currentBehavior?.IsActive ?? false;
     }
-    
-    #endregion
 
-    #region Debug Utilities
-    
     public void DebugLog(string message)
     {
         if (enableDebugLogging)
@@ -347,11 +301,7 @@ public class CrawlingEntity : MonoBehaviour
             Debug.LogError($"[CrawlingEntity] {message}");
         }
     }
-    
-    #endregion
 
-    #region Gizmos
-    
     private void OnDrawGizmos()
     {
         if (movement == null) return;
@@ -373,6 +323,4 @@ public class CrawlingEntity : MonoBehaviour
         Vector3 groundPos = new Vector3(transform.position.x, movement.GroundY, transform.position.z);
         Gizmos.DrawWireCube(groundPos, Vector3.one * 0.5f);
     }
-    
-    #endregion
 } 

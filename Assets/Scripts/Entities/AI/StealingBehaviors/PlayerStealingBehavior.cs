@@ -1,18 +1,13 @@
 using UnityEngine;
+using BitByBit.Core;
 
 [System.Serializable]
 public class PlayerStealingBehavior : IStealingBehavior
 {
-    #region Configuration
-    
     private float detectionRange;
     private float minFollowDistance;
     private float followDelay;
-    
-    #endregion
 
-    #region Private Fields
-    
     private CrawlingEntity entity;
     private CrawlingEntityMovement movement;
     private BitCarrier bitCarrier;
@@ -23,11 +18,7 @@ public class PlayerStealingBehavior : IStealingBehavior
     private bool isFollowing;
     private bool hasCollidedWithPlayer;
     private float followTimer;
-    
-    #endregion
 
-    #region IStealingBehavior Implementation
-    
     public bool IsActive => isActive;
     public bool IsComplete => isComplete;
     public string BehaviorName => "Player Stealing";
@@ -102,11 +93,7 @@ public class PlayerStealingBehavior : IStealingBehavior
         isFollowing = false;
         movement?.StopMovement();
     }
-    
-    #endregion
 
-    #region Player Stealing Logic
-    
     private void HandlePlayerStealing()
     {
         if (hasCollidedWithPlayer && bitCarrier.IsCarryingBit)
@@ -184,9 +171,7 @@ public class PlayerStealingBehavior : IStealingBehavior
         }
     }
     
-    #endregion
 
-    #region Player Interaction
     
     private void StealBitFromPlayer()
     {
@@ -232,27 +217,34 @@ public class PlayerStealingBehavior : IStealingBehavior
         }
     }
     
-    #endregion
 
-    #region Initialization Helpers
     
     private void FindPlayerTarget()
     {
-        GameObject player = GameObject.FindGameObjectWithTag("Player");
-        if (player != null)
+        // Use GameReferences for better performance
+        if (GameReferences.Instance != null && GameReferences.Instance.Player != null)
         {
-            playerTarget = player.transform;
-            entity.DebugLog($"PlayerStealingBehavior found player: {player.name}");
+            playerTarget = GameReferences.Instance.Player;
+            entity.DebugLog($"PlayerStealingBehavior found player via GameReferences: {playerTarget.name}");
         }
         else
         {
-            entity.DebugLogError("PlayerStealingBehavior couldn't find player with tag 'Player'!");
+            // Fallback: try to find player with tag if GameReferences fails
+            GameObject player = GameObject.FindGameObjectWithTag("Player");
+            if (player != null)
+            {
+                playerTarget = player.transform;
+                entity.DebugLog($"PlayerStealingBehavior found player via fallback: {player.name}");
+                entity.DebugLogWarning("PlayerStealingBehavior: Found player via fallback method. Please ensure GameReferences is properly configured.");
+            }
+            else
+            {
+                entity.DebugLogError("PlayerStealingBehavior couldn't find player with tag 'Player'!");
+            }
         }
     }
     
-    #endregion
 
-    #region Collision Detection
     
     public void OnPlayerCollision(Collider2D playerCollider)
     {
@@ -262,5 +254,4 @@ public class PlayerStealingBehavior : IStealingBehavior
         }
     }
     
-    #endregion
 } 

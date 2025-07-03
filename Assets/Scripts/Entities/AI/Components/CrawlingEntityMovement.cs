@@ -3,8 +3,6 @@ using UnityEngine;
 [RequireComponent(typeof(Rigidbody2D), typeof(SpriteRenderer))]
 public class CrawlingEntityMovement : MonoBehaviour
 {
-    #region Serialized Fields
-    
     [Header("Movement Settings")]
     [SerializeField] private float moveForce = 8f;
     [SerializeField] private float maxSpeed = 4f;
@@ -15,30 +13,18 @@ public class CrawlingEntityMovement : MonoBehaviour
     [SerializeField] private float accelerationMultiplier = 2f;
     [SerializeField] private float initialBoostForce = 12f;
     [SerializeField] private float accelerationTime = 0.5f;
-    
-    #endregion
 
-    #region Private Fields
-    
     private Rigidbody2D rb;
     private SpriteRenderer spriteRenderer;
     private float lastMoveDirection = 1f; // 1 for right, -1 for left
     private float accelerationTimer = 0f;
     private bool wasMoving = false;
-    
-    #endregion
 
-    #region Public Properties
-    
     public float GroundY => groundY;
     public bool IsMoving => Mathf.Abs(rb.linearVelocity.x) > 0.1f;
     public Vector2 Velocity => rb.linearVelocity;
     public float MoveDirection => lastMoveDirection;
-    
-    #endregion
 
-    #region Unity Lifecycle
-    
     private void Awake()
     {
         InitializeComponents();
@@ -50,11 +36,7 @@ public class CrawlingEntityMovement : MonoBehaviour
         UpdateAcceleration();
         FlipSpriteToFaceDirection();
     }
-    
-    #endregion
 
-    #region Initialization
-    
     private void InitializeComponents()
     {
         rb = GetComponent<Rigidbody2D>();
@@ -65,11 +47,7 @@ public class CrawlingEntityMovement : MonoBehaviour
     {
         transform.position = new Vector3(transform.position.x, groundY, transform.position.z);
     }
-    
-    #endregion
 
-    #region Movement Control
-    
     public void MoveTowardsTarget(Vector3 targetPosition, float customForce = 0f)
     {
         float forceToUse = customForce > 0f ? customForce : moveForce;
@@ -109,11 +87,7 @@ public class CrawlingEntityMovement : MonoBehaviour
     {
         rb.linearVelocity = velocity;
     }
-    
-    #endregion
 
-    #region Movement Physics
-    
     private void ApplyMovementForce(Vector3 direction, float force)
     {
         // Apply acceleration boost if just starting to move
@@ -159,11 +133,7 @@ public class CrawlingEntityMovement : MonoBehaviour
         
         wasMoving = isCurrentlyMoving;
     }
-    
-    #endregion
 
-    #region Visual Updates
-    
     private void FlipSpriteToFaceDirection()
     {
         if (spriteRenderer != null)
@@ -171,11 +141,7 @@ public class CrawlingEntityMovement : MonoBehaviour
             spriteRenderer.flipX = lastMoveDirection < 0f;
         }
     }
-    
-    #endregion
 
-    #region Public Utilities
-    
     public float GetDistanceToTarget(Vector3 targetPosition)
     {
         return Vector3.Distance(transform.position, targetPosition);
@@ -190,6 +156,4 @@ public class CrawlingEntityMovement : MonoBehaviour
     {
         return GetDistanceToTarget(targetPosition) <= distance;
     }
-    
-    #endregion
 } 

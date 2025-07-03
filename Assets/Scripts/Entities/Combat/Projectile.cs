@@ -2,8 +2,6 @@ using UnityEngine;
 
 public class Projectile : MonoBehaviour
 {
-    #region Serialized Fields
-    
     [Header("Projectile Settings")]
     [SerializeField] private float speed = 10f;
     [SerializeField] private float lifetime = 5f;
@@ -17,26 +15,14 @@ public class Projectile : MonoBehaviour
     
     [Header("Debug")]
     [SerializeField] private bool showDebugInfo = true;
-    
-    #endregion
 
-    #region Private Fields
-    
     private Vector2 direction;
     private bool hasHit = false;
     private float timer;
     private Rarity rarity = Rarity.Common;
-    
-    #endregion
 
-    #region Public Properties
-    
     public int Damage { get => damage; set => damage = value; }
     public Rarity Rarity { get => rarity; set => rarity = value; }
-    
-    #endregion
-
-    #region Unity Lifecycle
 
     private void Awake()
     {
@@ -57,10 +43,6 @@ public class Projectile : MonoBehaviour
         ProcessLifetime();
     }
 
-    #endregion
-
-    #region Initialization
-
     private void InitializeComponents()
     {
         if (spriteRenderer == null)
@@ -74,10 +56,6 @@ public class Projectile : MonoBehaviour
         timer = lifetime;
     }
 
-    #endregion
-
-    #region Public Interface
-
     public void Initialize(Vector2 direction, int damage = 1, Rarity rarity = Rarity.Common)
     {
         SetDirection(direction);
@@ -87,10 +65,6 @@ public class Projectile : MonoBehaviour
         
         LogInitializationInfo();
     }
-
-    #endregion
-
-    #region Movement and Lifetime
 
     private void ProcessMovement()
     {
@@ -106,10 +80,6 @@ public class Projectile : MonoBehaviour
             DestroyProjectile();
         }
     }
-
-    #endregion
-
-    #region Collision and Combat
 
     private void OnTriggerEnter2D(Collider2D other)
     {
@@ -168,10 +138,6 @@ public class Projectile : MonoBehaviour
         }
     }
 
-    #endregion
-
-    #region Visual Effects
-
     private void SpawnHitEffect()
     {
         if (hitEffect != null)
@@ -179,12 +145,6 @@ public class Projectile : MonoBehaviour
             Instantiate(hitEffect, transform.position, transform.rotation);
         }
     }
-
-
-
-    #endregion
-
-    #region Property Management
 
     private void SetDirection(Vector2 newDirection)
     {
@@ -207,19 +167,11 @@ public class Projectile : MonoBehaviour
         transform.rotation = Quaternion.AngleAxis(angle, Vector3.forward);
     }
 
-    #endregion
-
-    #region Destruction
-
     private void DestroyProjectile()
     {
         LogDebugInfo("Destroying projectile");
         Destroy(gameObject);
     }
-
-    #endregion
-
-    #region Debug and Logging
 
     private void LogDebugInfo(string message)
     {
@@ -238,8 +190,6 @@ public class Projectile : MonoBehaviour
     {
         // Removed - using cleaner logging in spawner
     }
-
-    #endregion
 }
 
 // Interface for objects that can take damage

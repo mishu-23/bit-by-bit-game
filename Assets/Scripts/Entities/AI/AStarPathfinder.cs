@@ -39,7 +39,7 @@ public class AStarPathfinder : MonoBehaviour
             grid[x] = new Node(walkable, groundPosition, x);
         }
     }
-    public List<Vector3> FindPath(Vector3 startPos, Vector3 targetPos)
+    public List<Vector3> FindPath(Vector3 startPos, Vector3 targetPos, bool ignoreObstacles = false)
     {
         startPos.y = groundLevel;
         targetPos.y = groundLevel;
@@ -70,7 +70,7 @@ public class AStarPathfinder : MonoBehaviour
             }
             foreach (Node neighbour in GetNeighbours(currentNode))
             {
-                if (!neighbour.walkable || closedSet.Contains(neighbour))
+                if ((!ignoreObstacles && !neighbour.walkable) || closedSet.Contains(neighbour))
                     continue;
                 int newCost = currentNode.gCost + GetDistance(currentNode, neighbour);
                 if (newCost < neighbour.gCost || !openSet.Contains(neighbour))

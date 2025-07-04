@@ -1,6 +1,7 @@
 using UnityEngine;
 using BitByBit.Core;
 using System.Collections;
+using System.Collections.Generic;
 public class FlyingEntity : MonoBehaviour, IDamageable
 {
     [Header("Target")]
@@ -12,6 +13,10 @@ public class FlyingEntity : MonoBehaviour, IDamageable
     public float minFollowDistance = 1.5f;
     public float maxHeight = 5f;
     public float minHeight = 0.5f;
+    [Header("Pathfinding")]
+    public float pathUpdateInterval = 0.5f;
+    public float waypointReachedDistance = 0.5f;
+    public bool useAStar = true;
     [Header("Combat")]
     public int maxHealth = 10;
     public int currentHealth;
@@ -30,6 +35,14 @@ public class FlyingEntity : MonoBehaviour, IDamageable
     private bool hasStolenBit = false;
     private bool isFleeing = false;
     private Vector3 fleeTarget;
+    
+    // AStar pathfinding variables
+    private List<Vector3> currentPath = new List<Vector3>();
+    private int currentWaypointIndex = 0;
+    private float pathUpdateTimer = 0f;
+    private Vector3 lastTargetPosition;
+    private bool hasValidPath = false;
+    
     private void Awake()
     {
         gameObject.layer = 6;
@@ -81,8 +94,10 @@ public class FlyingEntity : MonoBehaviour, IDamageable
             return;
         }
         if (hasCollidedWithPlayer || hasStolenBit) return;
+        
         Vector2 distanceToPlayer = playerTarget.position - transform.position;
         float distanceMagnitude = distanceToPlayer.magnitude;
+        
         if (distanceMagnitude <= detectionRange && distanceMagnitude > minFollowDistance)
         {
             if (!isFollowing)
@@ -90,39 +105,25 @@ public class FlyingEntity : MonoBehaviour, IDamageable
                 Debug.Log($"FlyingEntity {gameObject.name} detected player at distance {distanceMagnitude:F1}, starting to follow...");
                 isFollowing = true;
             }
-            Vector2 direction = distanceToPlayer.normalized;
-            rb.AddForce(direction * moveForce, ForceMode2D.Force);
-            if (enableSpriteFlipping && spriteRenderer != null)
+            
+            if (useAStar)
             {
-                HandleSpriteFlipping(direction.x);
+                HandleAStarMovement();
             }
-            if (rb.linearVelocity.magnitude > maxSpeed)
+            else
             {
-                rb.linearVelocity = rb.linearVelocity.normalized * maxSpeed;
+                HandleDirectMovement();
             }
-            Vector3 currentPos = transform.position;
-            if (currentPos.y > maxHeight)
-            {
-                currentPos.y = maxHeight;
-                transform.position = currentPos;
-                Vector2 velocity = rb.linearVelocity;
-                if (velocity.y > 0) velocity.y = 0;
-                rb.linearVelocity = velocity;
-            }
-            else if (currentPos.y < minHeight)
-            {
-                currentPos.y = minHeight;
-                transform.position = currentPos;
-                Vector2 velocity = rb.linearVelocity;
-                if (velocity.y < 0) velocity.y = 0;
-                rb.linearVelocity = velocity;
-            }
+            
+            ClampMovementToHeightLimits();
             Debug.Log($"FlyingEntity {gameObject.name} following player, distance: {distanceMagnitude:F1}");
         }
         else if (distanceMagnitude <= minFollowDistance)
         {
             rb.linearVelocity = Vector2.zero;
             isFollowing = false;
+            hasValidPath = false;
+            currentPath.Clear();
             if (!hasStolenBit)
             {
                 StealBitFromPlayer();
@@ -134,10 +135,188 @@ public class FlyingEntity : MonoBehaviour, IDamageable
             {
                 Debug.Log($"FlyingEntity {gameObject.name} lost player, stopping (distance: {distanceMagnitude:F1})");
                 isFollowing = false;
+                hasValidPath = false;
+                currentPath.Clear();
             }
             rb.linearVelocity = Vector2.Lerp(rb.linearVelocity, Vector2.zero, 0.1f);
         }
     }
+    
+    private void HandleAStarMovement()
+    {
+        // Update pathfinding timer
+        pathUpdateTimer += Time.fixedDeltaTime;
+        
+        // Check if we need to update the path
+        bool shouldUpdatePath = false;
+        if (!hasValidPath || currentPath.Count == 0)
+        {
+            shouldUpdatePath = true;
+        }
+        else if (pathUpdateTimer >= pathUpdateInterval)
+        {
+            // Check if target moved significantly
+            if (Vector3.Distance(lastTargetPosition, playerTarget.position) > 2f)
+            {
+                shouldUpdatePath = true;
+            }
+        }
+        
+        if (shouldUpdatePath)
+        {
+            UpdatePath();
+        }
+        
+        // Follow the current path
+        if (hasValidPath && currentPath.Count > 0)
+        {
+            FollowPath();
+        }
+        else
+        {
+            // Fallback to direct movement if no path available
+            HandleDirectMovement();
+        }
+    }
+    
+    private void UpdatePath()
+    {
+        if (AStarPathfinder.Instance == null)
+        {
+            Debug.LogWarning($"FlyingEntity {gameObject.name}: AStarPathfinder not found! Falling back to direct movement.");
+            useAStar = false;
+            return;
+        }
+        
+        List<Vector3> newPath = AStarPathfinder.Instance.FindPath(transform.position, playerTarget.position, true);
+        
+        if (newPath != null && newPath.Count > 0)
+        {
+            currentPath = newPath;
+            currentWaypointIndex = 0;
+            hasValidPath = true;
+            lastTargetPosition = playerTarget.position;
+            pathUpdateTimer = 0f;
+            
+            // Adjust path waypoints to appropriate flying height
+            for (int i = 0; i < currentPath.Count; i++)
+            {
+                Vector3 waypoint = currentPath[i];
+                waypoint.y = GetOptimalFlyingHeight(waypoint);
+                currentPath[i] = waypoint;
+            }
+            
+            Debug.Log($"FlyingEntity {gameObject.name}: Updated AStar path with {currentPath.Count} waypoints");
+        }
+        else
+        {
+            Debug.LogWarning($"FlyingEntity {gameObject.name}: AStar failed to find path, using direct movement");
+            hasValidPath = false;
+        }
+    }
+    
+    private void FollowPath()
+    {
+        if (currentWaypointIndex >= currentPath.Count)
+        {
+            hasValidPath = false;
+            return;
+        }
+        
+        Vector3 targetWaypoint = currentPath[currentWaypointIndex];
+        Vector2 direction = (targetWaypoint - transform.position).normalized;
+        
+        // Apply movement force
+        rb.AddForce(direction * moveForce, ForceMode2D.Force);
+        
+        // Handle sprite flipping
+        if (enableSpriteFlipping && spriteRenderer != null)
+        {
+            HandleSpriteFlipping(direction.x);
+        }
+        
+        // Limit speed
+        if (rb.linearVelocity.magnitude > maxSpeed)
+        {
+            rb.linearVelocity = rb.linearVelocity.normalized * maxSpeed;
+        }
+        
+        // Check if we reached the current waypoint
+        if (Vector3.Distance(transform.position, targetWaypoint) < waypointReachedDistance)
+        {
+            currentWaypointIndex++;
+            if (currentWaypointIndex < currentPath.Count)
+            {
+                Debug.Log($"FlyingEntity {gameObject.name}: Reached waypoint {currentWaypointIndex-1}, moving to next waypoint");
+            }
+            else
+            {
+                Debug.Log($"FlyingEntity {gameObject.name}: Reached final waypoint");
+                hasValidPath = false;
+            }
+        }
+    }
+    
+    private void HandleDirectMovement()
+    {
+        Vector2 distanceToPlayer = playerTarget.position - transform.position;
+        Vector2 direction = distanceToPlayer.normalized;
+        
+        rb.AddForce(direction * moveForce, ForceMode2D.Force);
+        
+        if (enableSpriteFlipping && spriteRenderer != null)
+        {
+            HandleSpriteFlipping(direction.x);
+        }
+        
+        if (rb.linearVelocity.magnitude > maxSpeed)
+        {
+            rb.linearVelocity = rb.linearVelocity.normalized * maxSpeed;
+        }
+    }
+    
+    private void ClampMovementToHeightLimits()
+    {
+        Vector3 currentPos = transform.position;
+        if (currentPos.y > maxHeight)
+        {
+            currentPos.y = maxHeight;
+            transform.position = currentPos;
+            Vector2 velocity = rb.linearVelocity;
+            if (velocity.y > 0) velocity.y = 0;
+            rb.linearVelocity = velocity;
+        }
+        else if (currentPos.y < minHeight)
+        {
+            currentPos.y = minHeight;
+            transform.position = currentPos;
+            Vector2 velocity = rb.linearVelocity;
+            if (velocity.y < 0) velocity.y = 0;
+            rb.linearVelocity = velocity;
+        }
+    }
+    
+    private float GetOptimalFlyingHeight(Vector3 waypoint)
+    {
+        // Check for obstacles at this waypoint position
+        LayerMask obstacleLayer = 1; // Same as AStarPathfinder
+        float obstacleCheckHeight = 1.5f; // Height at which to check for obstacles
+        
+        Vector3 obstacleCheckPoint = new Vector3(waypoint.x, obstacleCheckHeight, waypoint.z);
+        bool hasObstacle = Physics2D.OverlapCircle(obstacleCheckPoint, 0.4f, obstacleLayer);
+        
+        if (hasObstacle)
+        {
+            // Fly high above obstacles
+            return maxHeight * 0.8f; // 80% of max height
+        }
+        else
+        {
+            // Fly low when no obstacles
+            return minHeight + 0.5f; // Slightly above minimum height
+        }
+    }
+    
     private void OnTriggerEnter2D(Collider2D other)
     {
         if (other.CompareTag("Player") || other.gameObject.layer == 3)
@@ -188,6 +367,45 @@ public class FlyingEntity : MonoBehaviour, IDamageable
             Gizmos.color = Color.magenta;
             Gizmos.DrawRay(transform.position, rb.linearVelocity);
         }
+        
+        // Draw AStar path
+        if (useAStar && hasValidPath && currentPath.Count > 0)
+        {
+            Gizmos.color = Color.cyan;
+            
+            // Draw path lines
+            for (int i = 0; i < currentPath.Count - 1; i++)
+            {
+                Gizmos.DrawLine(currentPath[i], currentPath[i + 1]);
+            }
+            
+            // Draw waypoints
+            for (int i = 0; i < currentPath.Count; i++)
+            {
+                if (i == currentWaypointIndex)
+                {
+                    Gizmos.color = Color.yellow; // Current target waypoint
+                    Gizmos.DrawWireSphere(currentPath[i], 0.3f);
+                }
+                else if (i < currentWaypointIndex)
+                {
+                    Gizmos.color = Color.green; // Completed waypoints
+                    Gizmos.DrawWireSphere(currentPath[i], 0.2f);
+                }
+                else
+                {
+                    Gizmos.color = Color.white; // Future waypoints
+                    Gizmos.DrawWireSphere(currentPath[i], 0.15f);
+                }
+            }
+            
+            // Draw line from entity to current waypoint
+            if (currentWaypointIndex < currentPath.Count)
+            {
+                Gizmos.color = Color.yellow;
+                Gizmos.DrawLine(transform.position, currentPath[currentWaypointIndex]);
+            }
+        }
     }
     public void ResetEntity()
     {
@@ -197,6 +415,14 @@ public class FlyingEntity : MonoBehaviour, IDamageable
         isFleeing = false;
         fleeTarget = Vector3.zero;
         rb.linearVelocity = Vector2.zero;
+        
+        // Reset pathfinding data
+        currentPath.Clear();
+        currentWaypointIndex = 0;
+        pathUpdateTimer = 0f;
+        hasValidPath = false;
+        lastTargetPosition = Vector3.zero;
+        
         if (enableSpriteFlipping && spriteRenderer != null)
         {
             facingRight = true;

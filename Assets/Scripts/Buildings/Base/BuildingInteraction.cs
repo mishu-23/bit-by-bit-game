@@ -1,21 +1,17 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
-
 public class BuildingInteraction : MonoBehaviour, IPointerClickHandler, IPointerEnterHandler, IPointerExitHandler
 {
     [Header("Building Settings")]
     [SerializeField] private string buildingName;
     [SerializeField] private string targetSceneName;
     [SerializeField] private string hoverMessage;
-    
     [Header("Visual Feedback")]
     [SerializeField] private Color normalColor = Color.white;
     [SerializeField] private Color hoverColor = new Color(1f, 1f, 1f, 0.8f);
-    
     private SpriteRenderer spriteRenderer;
     private BoxCollider2D boxCollider;
-
     private void Awake()
     {
         spriteRenderer = GetComponent<SpriteRenderer>();
@@ -25,7 +21,6 @@ public class BuildingInteraction : MonoBehaviour, IPointerClickHandler, IPointer
             enabled = false;
             return;
         }
-
         boxCollider = GetComponent<BoxCollider2D>();
         if (boxCollider == null)
         {
@@ -35,7 +30,6 @@ public class BuildingInteraction : MonoBehaviour, IPointerClickHandler, IPointer
         }
         Debug.Log($"Home is on {gameObject.name}");
     }
-
     public void OnPointerClick(PointerEventData eventData)
     {
         Debug.Log($"BuildingInteraction: Clicked on {buildingName}");
@@ -45,16 +39,14 @@ public class BuildingInteraction : MonoBehaviour, IPointerClickHandler, IPointer
             SceneManager.LoadScene(targetSceneName);
         }
     }
-
     public void OnPointerEnter(PointerEventData eventData)
     {
         Debug.Log($"BuildingInteraction: Hovering over {buildingName}");
         spriteRenderer.color = hoverColor;
     }
-
     public void OnPointerExit(PointerEventData eventData)
     {
         Debug.Log($"BuildingInteraction: Exiting hover on {buildingName}");
         spriteRenderer.color = normalColor;
     }
-} 
+}

@@ -1,30 +1,23 @@
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
-
 public class SmithInventoryTestPopulator : MonoBehaviour
 {
     [Header("Inventory UI")]
-    public Transform inventoryContent; // Assign the Content object of the ScrollView
-    public GameObject inventoryBitSlotPrefab; // Assign the InventoryBitSlot prefab
-
+    public Transform inventoryContent; 
+    public GameObject inventoryBitSlotPrefab; 
     [Header("Test Power Bits")] 
-    public List<Bit> testPowerBits; // Assign Power Bit ScriptableObjects here
-
+    public List<Bit> testPowerBits; 
     void Start()
     {
         PopulateInventory();
     }
-
     public void PopulateInventory()
     {
-        // Clear existing children
         foreach (Transform child in inventoryContent)
         {
             Destroy(child.gameObject);
         }
-
-        // Instantiate a slot for each test Power Bit
         foreach (Bit bit in testPowerBits)
         {
             if (bit == null || bit.BitType != BitType.PowerBit) continue;
@@ -38,4 +31,4 @@ public class SmithInventoryTestPopulator : MonoBehaviour
             }
         }
     }
-} 
+}

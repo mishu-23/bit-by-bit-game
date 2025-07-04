@@ -1,7 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
 using System.IO;
-
 namespace BitByBit.UI
 {
     public class MainMenuOverlayManager : MonoBehaviour
@@ -10,40 +9,32 @@ namespace BitByBit.UI
         [SerializeField] private Button newGameButton;
         [SerializeField] private Button resumeButton;
         [SerializeField] private Button quitButton;
-        
         private void Start()
         {
             InitializeButtons();
             CheckForSaveData();
         }
-        
         private void InitializeButtons()
         {
             if (newGameButton != null)
             {
                 newGameButton.onClick.AddListener(OnNewGameClicked);
             }
-            
             if (resumeButton != null)
             {
                 resumeButton.onClick.AddListener(OnResumeClicked);
             }
-            
             if (quitButton != null)
             {
                 quitButton.onClick.AddListener(OnQuitClicked);
             }
         }
-        
         private void CheckForSaveData()
         {
             bool hasSaveData = HasExistingSaveData();
-            
             if (resumeButton != null)
             {
                 resumeButton.interactable = hasSaveData;
-                
-                // Optional: Change visual appearance if no save data
                 if (!hasSaveData)
                 {
                     var colors = resumeButton.colors;
@@ -52,22 +43,17 @@ namespace BitByBit.UI
                     resumeButton.colors = colors;
                 }
             }
-            
             Debug.Log($"Overlay - Save data found: {hasSaveData}");
         }
-        
         private bool HasExistingSaveData()
         {
             string basePath = Application.persistentDataPath;
-            
-            // Check for any of the save files
             string[] saveFiles = {
                 "smith_build.json",
                 "smith_inventory.json", 
                 "core_storage.json",
                 "settlement_storage.json"
             };
-            
             foreach (string fileName in saveFiles)
             {
                 string filePath = Path.Combine(basePath, fileName);
@@ -77,53 +63,41 @@ namespace BitByBit.UI
                     return true;
                 }
             }
-            
             return false;
         }
-        
         private void OnNewGameClicked()
         {
             Debug.Log("New Game clicked from overlay");
-            
-            // Notify PauseManager to handle the new game (it will clear save data and restart)
             if (PauseManager.Instance != null)
             {
                 PauseManager.Instance.TriggerNewGameFromOverlay();
             }
         }
-        
         private void OnResumeClicked()
         {
             Debug.Log("Resume clicked from overlay");
-            
-            // Notify PauseManager to resume the game
             if (PauseManager.Instance != null)
             {
                 PauseManager.Instance.ResumeGame();
             }
         }
-        
         private void OnQuitClicked()
         {
             Debug.Log("Quit clicked from overlay");
             Application.Quit();
-            
             #if UNITY_EDITOR
             UnityEditor.EditorApplication.isPlaying = false;
             #endif
         }
-        
         private void ClearAllSaveData()
         {
             string basePath = Application.persistentDataPath;
-            
             string[] saveFiles = {
                 "smith_build.json",
                 "smith_inventory.json", 
                 "core_storage.json",
                 "settlement_storage.json"
             };
-            
             foreach (string fileName in saveFiles)
             {
                 string filePath = Path.Combine(basePath, fileName);
@@ -134,24 +108,20 @@ namespace BitByBit.UI
                 }
             }
         }
-        
         private void OnDestroy()
         {
-            // Clean up button listeners
             if (newGameButton != null)
             {
                 newGameButton.onClick.RemoveListener(OnNewGameClicked);
             }
-            
             if (resumeButton != null)
             {
                 newGameButton.onClick.RemoveListener(OnResumeClicked);
             }
-            
             if (quitButton != null)
             {
                 quitButton.onClick.RemoveListener(OnQuitClicked);
             }
         }
     }
-} 
+}

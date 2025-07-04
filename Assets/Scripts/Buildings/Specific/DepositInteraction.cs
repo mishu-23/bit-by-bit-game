@@ -1,33 +1,25 @@
 using UnityEngine;
 using UnityEngine.UI;
 using BitByBit.Items;
-
 public class DepositInteraction : MonoBehaviour
 {
     [Header("Assign the Q_Icon and E_Icon children here")]
     public GameObject qIcon;
     public GameObject eIcon;
-    
     [Header("Core Bit Deposit Settings")]
-    [SerializeField] private int coreBitCount = 0; // Number of Core Bits in the deposit - will be loaded from save
-    
+    [SerializeField] private int coreBitCount = 0;
     [Header("Visual Feedback")]
-    [SerializeField] private Image progressBar; // Optional radial fill for progress
+    [SerializeField] private Image progressBar;
     [SerializeField] private Color progressColor = Color.blue;
     [SerializeField] private Color emptyColor = Color.gray;
-    
     private bool playerInRange = false;
     private PowerBitPlayerController playerController;
-    
     private void Start()
     {
         if (qIcon != null) qIcon.SetActive(false);
         if (eIcon != null) eIcon.SetActive(false);
-        
-        // Load deposit state from save file
         LoadDepositState();
     }
-
     private void OnTriggerEnter2D(Collider2D other)
     {
         if (other.CompareTag("Player"))
@@ -38,7 +30,6 @@ public class DepositInteraction : MonoBehaviour
             playerController = other.GetComponent<PowerBitPlayerController>();
         }
     }
-
     private void OnTriggerExit2D(Collider2D other)
     {
         if (other.CompareTag("Player"))
@@ -49,23 +40,18 @@ public class DepositInteraction : MonoBehaviour
             playerController = null;
         }
     }
-
     private void Update()
     {
         if (!playerInRange || playerController == null) return;
-        
-        // Q: Give Core Bit to player
         if (Input.GetKeyDown(KeyCode.Q))
         {
             TryGiveCoreBitToPlayer();
         }
-        // E: Take Core Bit from player
         if (Input.GetKeyDown(KeyCode.E))
         {
             TryTakeCoreBitFromPlayer();
         }
     }
-
     private void TryGiveCoreBitToPlayer()
     {
         if (coreBitCount <= 0)
@@ -78,7 +64,6 @@ public class DepositInteraction : MonoBehaviour
             Debug.Log("Player's build is full! Cannot add Core Bit.");
             return;
         }
-        // Give Core Bit - create it consistently using the same naming pattern as GetRandomBit()
         Bit coreBit = Bit.CreateBit("Common CoreBit", BitType.CoreBit, Rarity.Common, 0, 0f);
         bool added = BitCollectionManager.Instance.CollectBit(coreBit);
         if (added)
@@ -92,7 +77,6 @@ public class DepositInteraction : MonoBehaviour
             Debug.Log("Failed to add Core Bit to player's build (maybe full).");
         }
     }
-
     private void TryTakeCoreBitFromPlayer()
     {
         if (!PlayerHasCoreBit())
@@ -100,7 +84,6 @@ public class DepositInteraction : MonoBehaviour
             Debug.Log("Player has no Core Bit to deposit!");
             return;
         }
-        // Remove Core Bit from player
         Bit removed = RemoveCoreBitFromPlayer();
         if (removed != null)
         {
@@ -113,12 +96,10 @@ public class DepositInteraction : MonoBehaviour
             Debug.Log("Failed to remove Core Bit from player's build.");
         }
     }
-
     private bool PlayerHasBuildSpace()
     {
         return BitCollectionManager.Instance != null && BitCollectionManager.Instance.HasEmptySpace();
     }
-
     private bool PlayerHasCoreBit()
     {
         if (playerController == null || playerController.powerBitCharacterRenderer == null) return false;
@@ -131,35 +112,29 @@ public class DepositInteraction : MonoBehaviour
         }
         return false;
     }
-
     private Bit RemoveCoreBitFromPlayer()
     {
         if (playerController == null || playerController.powerBitCharacterRenderer == null) return null;
         var activeBits = playerController.powerBitCharacterRenderer.GetActiveBits();
-        // Remove the first Core Bit found
         foreach (var pos in activeBits)
         {
             var bitData = playerController.powerBitCharacterRenderer.GetBitAt(pos);
             if (bitData != null && bitData.bitType == BitType.CoreBit)
             {
                 playerController.powerBitCharacterRenderer.RemoveBit(pos);
-                // Create a Bit object to return
                 Bit bit = Bit.CreateBit(bitData.bitName, bitData.bitType, bitData.rarity, bitData.damage, bitData.shootingProbability);
-                // Save updated build
                 playerController.SaveUpdatedBuild();
                 return bit;
             }
         }
         return null;
     }
-
     public void AddCoreBitFromGatherer()
     {
         coreBitCount++;
         SaveDepositState();
         Debug.Log($"Gatherer deposited a Core Bit. Core Bits in deposit: {coreBitCount}");
     }
-    
     public bool RemoveCoreBit()
     {
         if (coreBitCount > 0)
@@ -172,23 +147,19 @@ public class DepositInteraction : MonoBehaviour
         Debug.Log("Cannot remove Core Bit - deposit is empty!");
         return false;
     }
-    
     private void LoadDepositState()
     {
         string filePath = System.IO.Path.Combine(Application.persistentDataPath, "settlement_storage.json");
-        
         if (!System.IO.File.Exists(filePath))
         {
             Debug.Log("No settlement storage file found. Starting with empty deposit (0 Core Bits).");
             coreBitCount = 0;
             return;
         }
-
         try
         {
             string json = System.IO.File.ReadAllText(filePath);
             SettlementSaveData saveData = JsonUtility.FromJson<SettlementSaveData>(json);
-            
             if (saveData != null)
             {
                 coreBitCount = saveData.depositCoreBitCount;
@@ -206,13 +177,10 @@ public class DepositInteraction : MonoBehaviour
             coreBitCount = 0;
         }
     }
-    
     private void SaveDepositState()
     {
-        // Load existing data first to preserve other fields
         SettlementSaveData saveData = LoadExistingSettlementData();
         saveData.depositCoreBitCount = coreBitCount;
-        
         try
         {
             string json = JsonUtility.ToJson(saveData, true);
@@ -225,16 +193,13 @@ public class DepositInteraction : MonoBehaviour
             Debug.LogError($"Error saving settlement storage: {e.Message}");
         }
     }
-    
     private SettlementSaveData LoadExistingSettlementData()
     {
         string filePath = System.IO.Path.Combine(Application.persistentDataPath, "settlement_storage.json");
-        
         if (!System.IO.File.Exists(filePath))
         {
             return new SettlementSaveData();
         }
-
         try
         {
             string json = System.IO.File.ReadAllText(filePath);
@@ -247,10 +212,8 @@ public class DepositInteraction : MonoBehaviour
             return new SettlementSaveData();
         }
     }
-    
-    // Public getter for external access
     public int GetCoreBitCount()
     {
         return coreBitCount;
     }
-} 
+}

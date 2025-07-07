@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 namespace BitByBit.Core
 {
     public class GameReferences : MonoBehaviour
@@ -42,6 +43,9 @@ namespace BitByBit.Core
             {
                 Instance = this;
                 DontDestroyOnLoad(gameObject);
+                
+                SceneManager.sceneLoaded += OnSceneLoaded;
+                
                 if (autoFindReferences)
                 {
                     FindMissingReferences();
@@ -50,6 +54,56 @@ namespace BitByBit.Core
             else
             {
                 Destroy(gameObject);
+            }
+        }
+        private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            if (showDebugInfo)
+            {
+                Debug.Log($"GameReferences: Scene loaded - {scene.name}, mode: {mode}");
+            }
+            
+            if (mode == LoadSceneMode.Single)
+            {
+                StartCoroutine(RefreshReferencesAfterSceneLoad());
+            }
+        }
+        private System.Collections.IEnumerator RefreshReferencesAfterSceneLoad()
+        {
+            yield return null;
+            
+            if (showDebugInfo)
+            {
+                Debug.Log("GameReferences: Refreshing references after scene load...");
+            }
+            
+            ClearSceneSpecificReferences();
+            
+            if (autoFindReferences)
+            {
+                FindMissingReferences();
+            }
+            
+            ValidateReferences();
+        }
+        private void ClearSceneSpecificReferences()
+        {
+            smithCanvas = null;
+            inventoryContent = null;
+            buildGridPanel = null;
+            player = null;
+            deposit = null;
+            mine = null;
+            tree = null;
+            mainCamera = null;
+            playerController = null;
+            smithBuildManager = null;
+            characterRenderer = null;
+            depositInteraction = null;
+            
+            if (showDebugInfo)
+            {
+                Debug.Log("GameReferences: Cleared scene-specific references");
             }
         }
         private void Start()
@@ -245,6 +299,19 @@ namespace BitByBit.Core
             FindMissingReferences();
             ValidateReferences();
         }
+        
+   
+        public void ForceRefreshReferences()
+        {
+            if (showDebugInfo)
+            {
+                Debug.Log("GameReferences: Force refreshing all references...");
+            }
+            
+            ClearSceneSpecificReferences();
+            FindMissingReferences();
+            ValidateReferences();
+        }
         public T GetReference<T>(T cachedReference, System.Func<T> findFunction = null) where T : class
         {
             if (cachedReference != null)
@@ -271,11 +338,36 @@ namespace BitByBit.Core
             if (smithCanvas != null)
             {
                 smithCanvas.SetActive(active);
+                if (showDebugInfo)
+                {
+                    Debug.Log($"GameReferences: Set SmithCanvas active: {active}");
+                }
             }
-            else if (showDebugInfo)
+            else
             {
-                Debug.LogWarning("GameReferences: Cannot set SmithCanvas active - reference is null!");
+                if (showDebugInfo)
+                {
+                    Debug.LogWarning("GameReferences: Cannot set SmithCanvas active - reference is null! Attempting to re-find...");
+                }
+                
+                smithCanvas = GameObject.Find("SmithCanvas");
+                if (smithCanvas != null)
+                {
+                    smithCanvas.SetActive(active);
+                    if (showDebugInfo)
+                    {
+                        Debug.Log($"GameReferences: Re-found SmithCanvas and set active: {active}");
+                    }
+                }
+                else
+                {
+                    Debug.LogError("GameReferences: Failed to find SmithCanvas! Make sure it exists in the scene with the name 'SmithCanvas'.");
+                }
             }
+        }
+        private void OnDestroy()
+        {
+            SceneManager.sceneLoaded -= OnSceneLoaded;
         }
     }
 }

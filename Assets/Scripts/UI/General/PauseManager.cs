@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using System;
+using System.Collections;
 public class PauseManager : MonoBehaviour
 {
     public static PauseManager Instance { get; private set; }
@@ -36,6 +37,11 @@ public class PauseManager : MonoBehaviour
     }
     public bool IsPaused => isPaused;
     public PauseType CurrentPauseType => currentPauseType;
+
+    public bool IsSmithBuilderActive()
+    {
+        return isPaused && currentPauseType == PauseType.SmithBuilder;
+    }
     private void Awake()
     {
         if (Instance == null)
@@ -59,6 +65,8 @@ public class PauseManager : MonoBehaviour
         {
             pauseMenuCanvas.SetActive(false);
         }
+        
+        SceneManager.sceneLoaded += OnSceneLoaded;
     }
     private void Update()
     {
@@ -254,8 +262,38 @@ public class PauseManager : MonoBehaviour
         Debug.Log("New Game clicked from overlay - clearing save data and restarting");
         ClearAllSaveData();
         HideMainMenuOverlay();
-        Time.timeScale = 1f;
+        
+        ResetPauseState();
+        
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+    }
+    
+    private void ResetPauseState()
+    {
+        Debug.Log("Resetting PauseManager state for new game");
+        
+        isPaused = false;
+        currentPauseType = PauseType.None;
+        Time.timeScale = 1f;
+        AudioListener.volume = originalVolumeLevel;
+        
+        Cursor.visible = originalCursorVisible;
+        Cursor.lockState = originalCursorLockState;
+        
+        if (activeMainMenuOverlay != null)
+        {
+            Destroy(activeMainMenuOverlay);
+            activeMainMenuOverlay = null;
+        }
+        
+        if (pauseMenuCanvas != null)
+        {
+            pauseMenuCanvas.SetActive(false);
+        }
+        
+        ClearInputStates();
+        
+        Debug.Log("PauseManager state reset complete");
     }
     private void OnResumeFromOverlay()
     {
@@ -319,6 +357,8 @@ public class PauseManager : MonoBehaviour
     }
     private void OnDestroy()
     {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+        
         OnGamePaused = null;
         OnGameResumed = null;
         if (activeMainMenuOverlay != null)
@@ -336,6 +376,25 @@ public class PauseManager : MonoBehaviour
         if (quitButton != null)
         {
             quitButton.onClick.RemoveListener(QuitGame);
+        }
+    }
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        Debug.Log($"Scene loaded: {scene.name}, mode: {mode}");
+        
+        if (mode == LoadSceneMode.Single)
+        {
+            StartCoroutine(ResetPauseStateOnSceneLoad());
+        }
+    }
+    private System.Collections.IEnumerator ResetPauseStateOnSceneLoad()
+    {
+        yield return null;
+        
+        if (isPaused || currentPauseType != PauseType.None || Time.timeScale != 1f)
+        {
+            Debug.Log("Detected incorrect pause state after scene load - resetting");
+            ResetPauseState();
         }
     }
 }

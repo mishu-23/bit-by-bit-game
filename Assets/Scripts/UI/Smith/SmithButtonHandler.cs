@@ -21,10 +21,13 @@ public class SmithButtonHandler : MonoBehaviour
     void OnCloseButtonClick()
     {
         if (PauseManager.Instance != null && PauseManager.Instance.IsPaused && 
-            PauseManager.Instance.CurrentPauseType != PauseManager.PauseType.SmithBuilder)
+            PauseManager.Instance.CurrentPauseType != PauseManager.PauseType.SmithBuilder &&
+            !IsSmithBuilderActive())
         {
+            Debug.Log("Close button blocked - game is paused for non-SmithBuilder reason");
             return;
         }
+        
         Debug.Log("Close button clicked - Closing Smith menu");
         if (buildManager != null)
         {
@@ -34,16 +37,37 @@ public class SmithButtonHandler : MonoBehaviour
     void OnBuildButtonClick()
     {
         if (PauseManager.Instance != null && PauseManager.Instance.IsPaused && 
-            PauseManager.Instance.CurrentPauseType != PauseManager.PauseType.SmithBuilder)
+            PauseManager.Instance.CurrentPauseType != PauseManager.PauseType.SmithBuilder &&
+            !IsSmithBuilderActive())
         {
+            Debug.Log("Build button blocked - game is paused for non-SmithBuilder reason");
             return;
         }
+        
         Debug.Log("Build button clicked - Saving and applying build");
         if (buildManager != null)
         {
             buildManager.SaveBuild();
             buildManager.CloseSmithMenu(); 
         }
+    }
+    private bool IsSmithBuilderActive()
+    {
+        if (buildManager != null)
+        {
+            var canvas = buildManager.GetComponentInParent<Canvas>();
+            if (canvas != null && canvas.gameObject.activeInHierarchy)
+            {
+                return true;
+            }
+        }
+        
+        if (PauseManager.Instance != null && PauseManager.Instance.IsSmithBuilderActive())
+        {
+            return true;
+        }
+        
+        return false;
     }
     void OnDestroy()
     {

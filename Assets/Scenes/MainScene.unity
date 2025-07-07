@@ -463,7 +463,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   crawlingEntityPrefab: {fileID: 9000817763735303982, guid: 6d4d03ca57d859745b794e779dbc7737, type: 3}
-  spawnInterval: 10
+  spawnInterval: 5
   enableSpawning: 1
   spawnOffscreenDistance: 15
   groundY: 0.5
@@ -6581,14 +6581,14 @@ MonoBehaviour:
   spawnDistance: 2
   spawnPoint: {fileID: 67900944}
   canSpawnMultiple: 1
-  maxEntities: 3
+  maxEntities: 10
   progressText: {fileID: 1668322833}
-  maxCoreBits: 75
+  maxCoreBits: 15
   storedCoreBits: []
   longPressDuration: 1
-  villageThreshold: 10
-  townThreshold: 20
-  cityThreshold: 35
+  villageThreshold: 5
+  townThreshold: 10
+  cityThreshold: 15
   progressBar: {fileID: 0}
   progressColor: {r: 0, g: 1, b: 0, a: 1}
   fullColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
@@ -7390,7 +7390,7 @@ MonoBehaviour:
   spawnPoint: {fileID: 0}
   spawnOffset: 1
   characterRenderer: {fileID: 0}
-  showDebugInfo: 0
+  showDebugInfo: 1
 --- !u!114 &1195285483
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -7411,7 +7411,7 @@ MonoBehaviour:
   epicBitWeight: 1.5
   rareBitWeight: 1
   defaultBitWeight: 0.5
-  showDebugInfo: 0
+  showDebugInfo: 1
 --- !u!1 &1251377145
 GameObject:
   m_ObjectHideFlags: 0
@@ -8965,12 +8965,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   eIcon: {fileID: 772959342}
   progressText: {fileID: 6954302}
-  maxCoreBits: 15
+  maxCoreBits: 30
   storedCoreBits: []
   longPressDuration: 1
-  firstThreshold: 5
-  secondThreshold: 10
-  finalThreshold: 15
+  firstThreshold: 10
+  secondThreshold: 20
+  finalThreshold: 30
   progressBar: {fileID: 0}
   progressColor: {r: 0, g: 1, b: 0, a: 1}
   fullColor: {r: 1, g: 0, b: 0, a: 1}

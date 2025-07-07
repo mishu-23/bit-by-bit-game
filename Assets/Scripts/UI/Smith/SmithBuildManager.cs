@@ -361,14 +361,38 @@ public class SmithBuildManager : MonoBehaviour
             RevertToOriginalState();
         }
         RevertInventoryToOriginalState();
+        
+        // Try to set SmithCanvas inactive with better error handling
         if (GameReferences.Instance != null)
         {
             GameReferences.Instance.SetSmithCanvasActive(false);
         }
+        else
+        {
+            Debug.LogWarning("SmithBuildManager: GameReferences.Instance is null! Attempting to find SmithCanvas directly...");
+            
+            // Fallback: try to find and disable SmithCanvas directly
+            GameObject smithCanvas = GameObject.Find("SmithCanvas");
+            if (smithCanvas != null)
+            {
+                smithCanvas.SetActive(false);
+                Debug.Log("SmithBuildManager: Found and disabled SmithCanvas directly");
+            }
+            else
+            {
+                Debug.LogError("SmithBuildManager: Could not find SmithCanvas! The UI might not be properly hidden.");
+            }
+        }
+        
         if (PauseManager.Instance != null)
         {
             PauseManager.Instance.ResumeGame();
         }
+        else
+        {
+            Debug.LogWarning("SmithBuildManager: PauseManager.Instance is null! Game might remain paused.");
+        }
+        
         Debug.Log("Smith menu closed - changes reverted and game resumed");
     }
     public void LoadCurrentBuild()

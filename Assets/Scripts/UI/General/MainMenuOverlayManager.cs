@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 using System.IO;
 namespace BitByBit.UI
 {
@@ -9,11 +10,21 @@ namespace BitByBit.UI
         [SerializeField] private Button newGameButton;
         [SerializeField] private Button resumeButton;
         [SerializeField] private Button quitButton;
+        
+        [Header("Scene Management")]
+        [SerializeField] private string gameSceneName = "MainScene";
+        
+        private bool isInMainMenuScene = false;
+        
         private void Start()
         {
+            // Check if we're in the main menu scene
+            isInMainMenuScene = SceneManager.GetActiveScene().name == "MainMenu";
+            
             InitializeButtons();
             CheckForSaveData();
         }
+        
         private void InitializeButtons()
         {
             if (newGameButton != null)
@@ -29,6 +40,7 @@ namespace BitByBit.UI
                 quitButton.onClick.AddListener(OnQuitClicked);
             }
         }
+        
         private void CheckForSaveData()
         {
             bool hasSaveData = HasExistingSaveData();
@@ -45,6 +57,7 @@ namespace BitByBit.UI
             }
             Debug.Log($"Overlay - Save data found: {hasSaveData}");
         }
+        
         private bool HasExistingSaveData()
         {
             string basePath = Application.persistentDataPath;
@@ -65,22 +78,53 @@ namespace BitByBit.UI
             }
             return false;
         }
+        
         private void OnNewGameClicked()
         {
             Debug.Log("New Game clicked from overlay");
-            if (PauseManager.Instance != null)
+            
+            if (isInMainMenuScene)
             {
-                PauseManager.Instance.TriggerNewGameFromOverlay();
+                // We're in the main menu scene, start a new game
+                Debug.Log("Starting new game from main menu - clearing all save data");
+                ClearAllSaveData();
+                LoadGameScene();
+            }
+            else
+            {
+                // We're in the game scene as an overlay, trigger new game through PauseManager
+                if (PauseManager.Instance != null)
+                {
+                    PauseManager.Instance.TriggerNewGameFromOverlay();
+                }
             }
         }
+        
         private void OnResumeClicked()
         {
             Debug.Log("Resume clicked from overlay");
-            if (PauseManager.Instance != null)
+            
+            if (isInMainMenuScene)
             {
-                PauseManager.Instance.ResumeGame();
+                // We're in the main menu scene, load the game scene
+                if (!HasExistingSaveData())
+                {
+                    Debug.LogWarning("No save data found for resume!");
+                    return;
+                }
+                Debug.Log("Resuming game from main menu with existing save data");
+                LoadGameScene();
+            }
+            else
+            {
+                // We're in the game scene as an overlay, resume through PauseManager
+                if (PauseManager.Instance != null)
+                {
+                    PauseManager.Instance.ResumeGame();
+                }
             }
         }
+        
         private void OnQuitClicked()
         {
             Debug.Log("Quit clicked from overlay");
@@ -89,6 +133,13 @@ namespace BitByBit.UI
             UnityEditor.EditorApplication.isPlaying = false;
             #endif
         }
+        
+        private void LoadGameScene()
+        {
+            Debug.Log($"Loading game scene: {gameSceneName}");
+            SceneManager.LoadScene(gameSceneName);
+        }
+        
         private void ClearAllSaveData()
         {
             string basePath = Application.persistentDataPath;
@@ -108,6 +159,7 @@ namespace BitByBit.UI
                 }
             }
         }
+        
         private void OnDestroy()
         {
             if (newGameButton != null)
@@ -116,7 +168,7 @@ namespace BitByBit.UI
             }
             if (resumeButton != null)
             {
-                newGameButton.onClick.RemoveListener(OnResumeClicked);
+                resumeButton.onClick.RemoveListener(OnResumeClicked);
             }
             if (quitButton != null)
             {

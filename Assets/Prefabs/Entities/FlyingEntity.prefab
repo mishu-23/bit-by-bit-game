@@ -181,7 +181,10 @@ MonoBehaviour:
   detectionRange: 14.37
   minFollowDistance: 1.5
   maxHeight: 15.7
-  minHeight: 3
+  minHeight: 1
+  pathUpdateInterval: 0.5
+  waypointReachedDistance: 0.5
+  useAStar: 1
   maxHealth: 10
   currentHealth: 0
   isFollowing: 0
